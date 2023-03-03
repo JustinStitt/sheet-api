@@ -7,6 +7,11 @@ api.jstitt.dev {
 		uri strip_prefix /acmmm/sheet
 		reverse_proxy 127.0.0.1:5000
 	}
+	respond "Work in progress... Come back later."
 }
 
+# Need to add `A` record to DNS to support non `api.` url
+# jstitt.dev {
+	# respond "In development... Come back later"
+# }
 
