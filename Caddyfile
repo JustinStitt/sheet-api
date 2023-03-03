@@ -1,0 +1,12 @@
+api.jstitt.dev {
+	# api.jstitt.dev/acmmm/sheet
+	route /acmmm/sheet* {
+		# routes to / directory
+		# Example of going to localhost:5000/test
+		# api.jstitt.dev/acmmm/sheet/test
+		uri strip_prefix /acmmm/sheet
+		reverse_proxy 127.0.0.1:5000
+	}
+}
+
+
