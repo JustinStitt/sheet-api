@@ -1,3 +1,3 @@
 #!/bin/bash
 
-pipreqs ./ # save dependencies
+pipreqs --force ./ # save dependencies
