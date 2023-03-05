@@ -14,13 +14,23 @@ class Logger:
         pst_time = pytz.utc.localize(datetime.utcnow()).astimezone(
             pytz.timezone("US/Pacific")
         )
-        frame = inspect.currentframe().f_back  # type: ignore
-        args, _, _, values = inspect.getargvalues(frame)  # type: ignore
-        row = [str(pst_time), frame.f_code.co_name]  # type: ignore
+
+        current_frame = inspect.currentframe()
+        assert current_frame is not None
+
+        previous_frame = current_frame.f_back
+        assert previous_frame is not None
+
+        args, _, _, values = inspect.getargvalues(previous_frame)
+
+        row = [str(pst_time), previous_frame.f_code.co_name]
+
         for arg in args:
             if arg == "self":
                 continue
             row.append(f"{arg}={values[arg]}")
+
         for k, v in kwargs.items():  # any additional args
             row.append(f"{k}={v}")
+
         self._log.append_table(row, overwrite=True)

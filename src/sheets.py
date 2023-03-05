@@ -85,7 +85,9 @@ class Sheet:
         return None
 
     def getScores(self, team_name: str) -> tuple[dict[int, int], dict[str, int]]:
-        sb: pd.DataFrame = self.getScoreboard()  # type: ignore
+        sb = self.getScoreboard()
+        assert type(sb) is pd.DataFrame
+
         events = dict(sb["-"])
         event_to_idx = {k: v for (v, k) in events.items()}
         return sb[team_name], event_to_idx
