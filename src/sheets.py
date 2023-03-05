@@ -20,6 +20,7 @@ class Sheet:
     def getScoreboard(self) -> pd.DataFrame | Literal[False]:
         return self.scoreboard.get_as_df()
 
+    # TODO: reduce redundancy in _findEvent and _findTeam
     def _findEvent(self, event_name: str) -> ps.Cell:
         cells = self.scoreboard.find(event_name)
         if len(cells) == 0:
