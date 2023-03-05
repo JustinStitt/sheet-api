@@ -24,22 +24,3 @@ class Logger:
         for k, v in kwargs.items():  # any additional args
             row.append(f"{k}={v}")
         self._log.append_table(row, overwrite=True)
-
-
-def _test_log():
-    frame = inspect.currentframe().f_back  # type: ignore
-    args, _, _, values = inspect.getargvalues(frame)  # type: ignore
-    row = ["00:11:22"]
-    row.append(frame.f_code.co_name)  # type: ignore
-    for k, v in values.items():
-        row.append(f"{k}={v}")
-    print(row)
-
-
-def _foo(one, b, qaz):
-    _test_log()
-    return one + b + qaz
-
-
-if __name__ == "__main__":
-    _foo(3, 9, 6)
