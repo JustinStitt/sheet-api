@@ -19,3 +19,11 @@ ssh-add ~/.ssh/id_rsa
 * Setup Caddyfile (reverse proxy + routing)
 * spin up WSGI with Gunicorn
 * Configure systemctl `see ./systemd`
+
+### Running
+```sh
+ python3 -m virtualenv --python=3.10.6 venv
+ source ./venv/bin/activate
+ python3 -m pip install -r requirements.txt
+ gunicorn -w 4 -b 127.0.0.1:5000 wsgi:app
+```
