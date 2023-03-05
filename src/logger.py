@@ -1,6 +1,8 @@
-import pytz
-import inspect
 from datetime import datetime
+import inspect
+
+import pytz
+
 from client import Client
 
 
