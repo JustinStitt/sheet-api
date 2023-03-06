@@ -8,9 +8,9 @@ api = Api(app)
 sheet = Sheet()
 
 
-class HelloWorld(Resource):
+class Home(Resource):
     def get(self):
-        return {"hello": "world"}
+        return "Welcome to the ACM March Madness Sheet API", 200
 
 
 class CreateTeam(Resource):
@@ -81,7 +81,7 @@ class GetScoreboard(Resource):
         return scoreboard.to_json(orient="records")
 
 
-api.add_resource(HelloWorld, "/")
+api.add_resource(Home, "/")
 api.add_resource(CreateTeam, "/create_team")
 api.add_resource(CreateEvent, "/create_event")
 api.add_resource(GetScores, "/scores/<team_name>")
