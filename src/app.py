@@ -1,9 +1,9 @@
-from flask import Flask, request
+from flask import Flask, request, current_app
 from flask_restful import Api, Resource
 from sheet import Sheet
 from typing import Literal
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="../docs")
 api = Api(app)
 sheet = Sheet()
 
@@ -18,6 +18,11 @@ class Home(Resource):
 
     def get(self):
         return "Welcome to the ACM March Madness Sheet API", 200
+
+
+class Docs(Resource):
+    def get(self):
+        return current_app.send_static_file("app.html")
 
 
 class CreateTeam(Resource):
@@ -220,6 +225,7 @@ class GetScoreboard(Resource):
 
 
 api.add_resource(Home, "/")
+api.add_resource(Docs, "/docs")
 api.add_resource(CreateTeam, "/create_team")
 api.add_resource(CreateEvent, "/create_event")
 api.add_resource(GetScores, "/scores/<team_name>")
