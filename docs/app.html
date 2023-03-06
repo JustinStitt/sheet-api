@@ -26,14 +26,28 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">from flask import Flask, request
+<pre><code class="python">from flask import Flask, jsonify, request, current_app
 from flask_restful import Api, Resource
 from sheet import Sheet
 from typing import Literal
+from dotenv import load_dotenv
+from os import getenv
 
-app = Flask(__name__)
+load_dotenv()
+
+from flask_jwt_extended import (
+    create_access_token,
+    get_jwt_identity,
+    jwt_required,
+    JWTManager,
+)
+
+app = Flask(__name__, static_folder=&#34;../docs&#34;)
 api = Api(app)
 sheet = Sheet()
+
+app.config[&#34;JWT_SECRET_KEY&#34;] = getenv(&#34;JWT_SECRET_KEY&#34;)
+jwt = JWTManager(app)
 
 
 class Home(Resource):
@@ -46,6 +60,23 @@ class Home(Resource):
 
     def get(self):
         return &#34;Welcome to the ACM March Madness Sheet API&#34;, 200
+
+
+class Login(Resource):
+    def post(self):
+        args = request.args
+        username = args[&#34;username&#34;]
+        password = args[&#34;password&#34;]
+        if username != getenv(&#34;ROOT_USERNAME&#34;) or password != getenv(&#34;ROOT_PASSWORD&#34;):
+            return &#34;bad creds&#34;, 401  # unauth
+
+        access_token = create_access_token(identity=username)
+        return jsonify(access_token=access_token)
+
+
+class Docs(Resource):
+    def get(self):
+        return current_app.send_static_file(&#34;app.html&#34;)
 
 
 class CreateTeam(Resource):
@@ -67,6 +98,7 @@ class CreateTeam(Resource):
 
     &#34;&#34;&#34;
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
@@ -93,6 +125,7 @@ class CreateEvent(Resource):
 
     &#34;&#34;&#34;
 
+    @jwt_required()
     def post(self):
         args = request.args
         event_name = args[&#34;event_name&#34;]
@@ -162,6 +195,7 @@ class SetScore(Resource):
 
     &#34;&#34;&#34;
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
@@ -194,6 +228,7 @@ class AdjustScore(Resource):
 
     &#34;&#34;&#34;
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
@@ -220,6 +255,7 @@ class ChangeTeamName(Resource):
         - Else -&gt; Something Went Wrong
     &#34;&#34;&#34;
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
@@ -248,6 +284,8 @@ class GetScoreboard(Resource):
 
 
 api.add_resource(Home, &#34;/&#34;)
+api.add_resource(Login, &#34;/login&#34;)
+api.add_resource(Docs, &#34;/docs&#34;)
 api.add_resource(CreateTeam, &#34;/create_team&#34;)
 api.add_resource(CreateEvent, &#34;/create_event&#34;)
 api.add_resource(GetScores, &#34;/scores/&lt;team_name&gt;&#34;)
@@ -321,6 +359,7 @@ if __name__ == &#34;__main__&#34;:
 
     &#34;&#34;&#34;
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
@@ -369,7 +408,8 @@ if __name__ == &#34;__main__&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def post(self):
+<pre><code class="python">@jwt_required()
+def post(self):
     args = request.args
     team_name = args[&#34;team_name&#34;]
     event_name = args[&#34;event_name&#34;]
@@ -422,6 +462,7 @@ Sets the current score for a team for a specific event.</p>
         - Else -&gt; Something Went Wrong
     &#34;&#34;&#34;
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
@@ -469,7 +510,8 @@ Sets the current score for a team for a specific event.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def post(self):
+<pre><code class="python">@jwt_required()
+def post(self):
     args = request.args
     team_name = args[&#34;team_name&#34;]
     new_name = args[&#34;new_name&#34;]
@@ -521,6 +563,7 @@ Sets the current score for a team for a specific event.</p>
 
     &#34;&#34;&#34;
 
+    @jwt_required()
     def post(self):
         args = request.args
         event_name = args[&#34;event_name&#34;]
@@ -567,7 +610,8 @@ Sets the current score for a team for a specific event.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def post(self):
+<pre><code class="python">@jwt_required()
+def post(self):
     args = request.args
     event_name = args[&#34;event_name&#34;]
     resp = sheet.createEvent(event_name)
@@ -618,6 +662,7 @@ Sets the current score for a team for a specific event.</p>
 
     &#34;&#34;&#34;
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
@@ -664,11 +709,77 @@ Sets the current score for a team for a specific event.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def post(self):
+<pre><code class="python">@jwt_required()
+def post(self):
     args = request.args
     team_name = args[&#34;team_name&#34;]
     resp = sheet.createTeam(team_name)
     return resp</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.Docs"><code class="flex name class">
+<span>class <span class="ident">Docs</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Docs(Resource):
+    def get(self):
+        return current_app.send_static_file(&#34;app.html&#34;)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.Docs.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.Docs.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.Docs.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    return current_app.send_static_file(&#34;app.html&#34;)</code></pre>
+</details>
+</dd>
+<dt id="app.Docs.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
 </details>
 </dd>
 </dl>
@@ -1005,6 +1116,85 @@ Sets the current score for a team for a specific event.</p>
 </dd>
 </dl>
 </dd>
+<dt id="app.Login"><code class="flex name class">
+<span>class <span class="ident">Login</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Login(Resource):
+    def post(self):
+        args = request.args
+        username = args[&#34;username&#34;]
+        password = args[&#34;password&#34;]
+        if username != getenv(&#34;ROOT_USERNAME&#34;) or password != getenv(&#34;ROOT_PASSWORD&#34;):
+            return &#34;bad creds&#34;, 401  # unauth
+
+        access_token = create_access_token(identity=username)
+        return jsonify(access_token=access_token)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.Login.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.Login.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.Login.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+<dt id="app.Login.post"><code class="name flex">
+<span>def <span class="ident">post</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def post(self):
+    args = request.args
+    username = args[&#34;username&#34;]
+    password = args[&#34;password&#34;]
+    if username != getenv(&#34;ROOT_USERNAME&#34;) or password != getenv(&#34;ROOT_PASSWORD&#34;):
+        return &#34;bad creds&#34;, 401  # unauth
+
+    access_token = create_access_token(identity=username)
+    return jsonify(access_token=access_token)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
 <dt id="app.SetScore"><code class="flex name class">
 <span>class <span class="ident">SetScore</span></span>
 </code></dt>
@@ -1050,6 +1240,7 @@ Sets the current score for a team for a specific event.</p>
 
     &#34;&#34;&#34;
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
@@ -1098,7 +1289,8 @@ Sets the current score for a team for a specific event.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def post(self):
+<pre><code class="python">@jwt_required()
+def post(self):
     args = request.args
     team_name = args[&#34;team_name&#34;]
     event_name = args[&#34;event_name&#34;]
@@ -1157,6 +1349,15 @@ Sets the current score for a team for a specific event.</p>
 </ul>
 </li>
 <li>
+<h4><code><a title="app.Docs" href="#app.Docs">Docs</a></code></h4>
+<ul class="">
+<li><code><a title="app.Docs.endpoint" href="#app.Docs.endpoint">endpoint</a></code></li>
+<li><code><a title="app.Docs.get" href="#app.Docs.get">get</a></code></li>
+<li><code><a title="app.Docs.mediatypes" href="#app.Docs.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.Docs.methods" href="#app.Docs.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="app.GetScore" href="#app.GetScore">GetScore</a></code></h4>
 <ul class="">
 <li><code><a title="app.GetScore.endpoint" href="#app.GetScore.endpoint">endpoint</a></code></li>
@@ -1190,6 +1391,15 @@ Sets the current score for a team for a specific event.</p>
 <li><code><a title="app.Home.get" href="#app.Home.get">get</a></code></li>
 <li><code><a title="app.Home.mediatypes" href="#app.Home.mediatypes">mediatypes</a></code></li>
 <li><code><a title="app.Home.methods" href="#app.Home.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.Login" href="#app.Login">Login</a></code></h4>
+<ul class="">
+<li><code><a title="app.Login.endpoint" href="#app.Login.endpoint">endpoint</a></code></li>
+<li><code><a title="app.Login.mediatypes" href="#app.Login.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.Login.methods" href="#app.Login.methods">methods</a></code></li>
+<li><code><a title="app.Login.post" href="#app.Login.post">post</a></code></li>
 </ul>
 </li>
 <li>

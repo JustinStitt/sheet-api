@@ -1,11 +1,25 @@
-from flask import Flask, request, current_app
+from flask import Flask, jsonify, request, current_app
 from flask_restful import Api, Resource
 from sheet import Sheet
 from typing import Literal
+from dotenv import load_dotenv
+from os import getenv
+
+load_dotenv()
+
+from flask_jwt_extended import (
+    create_access_token,
+    get_jwt_identity,
+    jwt_required,
+    JWTManager,
+)
 
 app = Flask(__name__, static_folder="../docs")
 api = Api(app)
 sheet = Sheet()
+
+app.config["JWT_SECRET_KEY"] = getenv("JWT_SECRET_KEY")
+jwt = JWTManager(app)
 
 
 class Home(Resource):
@@ -18,6 +32,18 @@ class Home(Resource):
 
     def get(self):
         return "Welcome to the ACM March Madness Sheet API", 200
+
+
+class Login(Resource):
+    def post(self):
+        args = request.args
+        username = args["username"]
+        password = args["password"]
+        if username != getenv("ROOT_USERNAME") or password != getenv("ROOT_PASSWORD"):
+            return "bad creds", 401  # unauth
+
+        access_token = create_access_token(identity=username)
+        return jsonify(access_token=access_token)
 
 
 class Docs(Resource):
@@ -44,6 +70,7 @@ class CreateTeam(Resource):
 
     """
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args["team_name"]
@@ -70,6 +97,7 @@ class CreateEvent(Resource):
 
     """
 
+    @jwt_required()
     def post(self):
         args = request.args
         event_name = args["event_name"]
@@ -139,6 +167,7 @@ class SetScore(Resource):
 
     """
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args["team_name"]
@@ -171,6 +200,7 @@ class AdjustScore(Resource):
 
     """
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args["team_name"]
@@ -197,6 +227,7 @@ class ChangeTeamName(Resource):
         - Else -> Something Went Wrong
     """
 
+    @jwt_required()
     def post(self):
         args = request.args
         team_name = args["team_name"]
@@ -225,6 +256,7 @@ class GetScoreboard(Resource):
 
 
 api.add_resource(Home, "/")
+api.add_resource(Login, "/login")
 api.add_resource(Docs, "/docs")
 api.add_resource(CreateTeam, "/create_team")
 api.add_resource(CreateEvent, "/create_event")
