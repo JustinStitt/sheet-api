@@ -1,12 +1,6 @@
 # sheet-api
 Wrapper for some sheet shenanigans
 
-### TODO
-
-* [API Authentication](https://blog.teclado.com/api-key-authentication-with-flask/)
-
-Also a template for GCP + Caddy + Flask + Gunicorn web servers
-
 ### Running
 ```sh
  python3 -m virtualenv --python=3.10.6 venv
@@ -19,9 +13,15 @@ Also a template for GCP + Caddy + Flask + Gunicorn web servers
 
 Navigate to `api.jstitt.dev/acmmm/sheet/docs`
 
-*Note: Endpoints prefix `api.jstitt.dev/acmmm/sheet/`*
+To use any `POST` routes you need to head over to `api.jstitt.dev/acmmm/sheet/login` and use admin (secret) credentials to retrieve a JWT key.
+
+Any `POST` requests need to be made with an authorization header as follows:
+`Authorization: Bearer <your_jwt_key>`
+
+*Note: Endpoints prefix is `api.jstitt.dev/acmmm/sheet/`*
 
 ### Setting up GCP VM to host webserver:
+Also a template for GCP + Caddy + Flask + Gunicorn web servers
 * Create f1-micro VM instance
 * setup ssh keys (https://www.markusdosch.com/2019/03/how-to-deploy-a-python-flask-application-to-the-web-with-google-cloud-platform-for-free/)
 ```
