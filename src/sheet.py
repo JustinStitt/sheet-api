@@ -117,6 +117,9 @@ class Sheet:
         self._logger.log(old_score=current_score, new_score=current_score + score_delta)
         return "success", 200
 
+    def getToken(self):
+        return "poppypenguins"
+
 
 if __name__ == "__main__":
     sheet = Sheet()
