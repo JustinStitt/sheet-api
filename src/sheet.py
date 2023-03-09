@@ -1,4 +1,5 @@
 from hashlib import new
+import json
 from typing import Literal
 
 from dotenv import load_dotenv
@@ -66,9 +67,9 @@ class Sheet:
             self._scoreboard.insert_cols(idx, values=[team_name, *zero_pad])
             self._tokens.insert_rows(idx, values=[team_name, token])
             self._logger.log()
-            return {"message": f"Team {team_name} created successfully", "token": token}
+            return {"message": f"Team {team_name} created successfully", "token": token, "status": 200}
         else:
-            return f'Team: "{team_name}" already exists!', 304
+            return {'message': f'Team: "{team_name}" already exists!', 'token': '', 'status': 304}
 
     def createEvent(self, event_name: str):
         idx = self._getNumberOfEvents() + 1

@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, current_app
+from flask import Flask, jsonify, request, current_app, make_response
 from flask_restful import Api, Resource
 from flask_cors import CORS
 from sheet import Sheet
@@ -77,7 +77,9 @@ class CreateTeam(Resource):
         args = request.args
         team_name = args["team_name"]
         resp = sheet.createTeam(team_name)
-        return resp
+        if resp['status'] == 200:
+            return make_response(jsonify(resp), 200)
+        return make_response(jsonify(resp), 304)
 
 
 class CreateEvent(Resource):
