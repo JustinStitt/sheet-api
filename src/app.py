@@ -75,9 +75,9 @@ class CreateTeam(Resource):
 
     def post(self):
         args = request.args
-        team_name = args['team_name']
+        team_name = args["team_name"]
         resp = sheet.createTeam(team_name)
-        return {"response": resp, "token": sheet.getToken()}
+        return resp
 
 
 class CreateEvent(Resource):

@@ -2,6 +2,7 @@ from hashlib import new
 from typing import Literal
 
 from dotenv import load_dotenv
+from os import getenv
 import pandas as pd
 import pygsheets as ps
 
@@ -18,6 +19,7 @@ class Sheet:
         # if logger and client.client != logger._client:
         #     raise Exception("Client and Logger not synced.")
         self._scoreboard = self._client.scoreboard
+        self._tokens = self._client.tokens
 
     def getScoreboard(self) -> pd.DataFrame | Literal[False]:
         return self._scoreboard.get_as_df()
@@ -60,9 +62,11 @@ class Sheet:
         except:
             idx = self._getNumberOfTeams() + 1
             zero_pad = [0 for _ in range(self._getNumberOfEvents())]
+            token = self._generateToken(team_name)
             self._scoreboard.insert_cols(idx, values=[team_name, *zero_pad])
+            self._tokens.insert_rows(idx, values=[team_name, token])
             self._logger.log()
-            return f'Team: "{team_name} created', 200
+            return {"message": f"Team {team_name} created successfully", "token": token}
         else:
             return f'Team: "{team_name}" already exists!', 304
 
@@ -117,8 +121,39 @@ class Sheet:
         self._logger.log(old_score=current_score, new_score=current_score + score_delta)
         return "success", 200
 
-    def getToken(self):
-        return "poppypenguins"
+    def _getTokens(self):
+        """
+        Retrieve the current list of tokens so we can ensure no
+        duplicate token is made
+        """
+        tokens = self._tokens.get_col(2, include_tailing_empty=False)
+        return tokens
+
+    def _generateToken(self, team_name: str):
+        """
+        Generate a unique token based on a hash of the team name
+        """
+        from hashlib import sha1
+
+        team_name = team_name.replace(" ", "").lower()
+
+        current_tokens = self._getTokens()
+        adjectives = open("../assets/adjectives.txt", "r").readlines()
+        nouns = open("../assets/nouns.txt", "r").readlines()
+
+        adjective_hash = sha1(team_name.encode()).hexdigest()
+        adjective_index = int(adjective_hash, 16) % len(adjectives)
+
+        noun_hash = sha1(team_name.encode()).hexdigest()
+        noun_index = int(noun_hash, 16) % len(nouns)
+
+        token = (
+            f"{adjectives[adjective_index].strip()}{nouns[noun_index].strip()}".lower()
+        )
+        if token in current_tokens:
+            return self._generateToken(team_name + getenv("SECRET_HASH_APPEND"))  # type: ignore
+
+        return token
 
 
 if __name__ == "__main__":

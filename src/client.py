@@ -13,6 +13,8 @@ class Client:
         self.sheets: dict[str, ps.Worksheet] = {
             "scoreboard": self.sheet.sheet1,
             "log": self.sheet.worksheet_by_title("log"),
+            "tokens": self.sheet.worksheet_by_title("tokens"),
         }
         self.scoreboard: ps.Worksheet = self.sheets["scoreboard"]
+        self.tokens: ps.Worksheet = self.sheets["tokens"]
         self.log: ps.Worksheet = self.sheets["log"]
