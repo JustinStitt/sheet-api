@@ -1,4 +1,5 @@
 #### Setting up systemctl background processing for flask webserver:
+* Change User from `ubuntu` to whatever your VM username is
 * Place acmmm.service in `/lib/systemd/system/`
 * Place acmmm.config in `/etc/init/`
 * use --chdir if app.py in /src/ directory and not in same directory as wsgi.py
