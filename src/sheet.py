@@ -25,7 +25,6 @@ class Sheet:
     def getScoreboard(self) -> pd.DataFrame | Literal[False]:
         return self._scoreboard.get_as_df()
 
-    # TODO: reduce redundancy in _findEvent and _findTeam
     def _findEvent(self, event_name: str) -> ps.Cell:
         cells = self._scoreboard.find(event_name)
         if len(cells) == 0:
@@ -67,9 +66,17 @@ class Sheet:
             self._scoreboard.insert_cols(idx, values=[team_name, *zero_pad])
             self._tokens.insert_rows(idx, values=[team_name, token])
             self._logger.log()
-            return {"message": f"Team {team_name} created successfully", "token": token, "status": 200}
+            return {
+                "message": f"Team {team_name} created successfully",
+                "token": token,
+                "status": 200,
+            }
         else:
-            return {'message': f'Team: "{team_name}" already exists!', 'token': '', 'status': 304}
+            return {
+                "message": f'Team: "{team_name}" already exists!',
+                "token": "",
+                "status": 304,
+            }
 
     def createEvent(self, event_name: str):
         idx = self._getNumberOfEvents() + 1

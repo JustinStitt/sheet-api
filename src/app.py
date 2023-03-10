@@ -77,7 +77,7 @@ class CreateTeam(Resource):
         args = request.args
         team_name = args["team_name"]
         resp = sheet.createTeam(team_name)
-        if resp['status'] == 200:
+        if resp["status"] == 200:
             return make_response(jsonify(resp), 200)
         return make_response(jsonify(resp), 304)
 
