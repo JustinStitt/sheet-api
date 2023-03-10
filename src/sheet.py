@@ -1,14 +1,15 @@
 from hashlib import new
 import json
+from os import getenv
 from typing import Literal
 
 from dotenv import load_dotenv
-from os import getenv
 import pandas as pd
 import pygsheets as ps
 
 from client import Client
 from logger import Logger
+from sanitize import sanitize
 
 load_dotenv()
 
@@ -25,6 +26,7 @@ class Sheet:
     def getScoreboard(self) -> pd.DataFrame | Literal[False]:
         return self._scoreboard.get_as_df()
 
+    @sanitize
     def _findEvent(self, event_name: str) -> ps.Cell:
         cells = self._scoreboard.find(event_name)
         if len(cells) == 0:
@@ -33,6 +35,7 @@ class Sheet:
             )
         return cells[0]
 
+    @sanitize
     def _findTeam(self, team_name: str) -> ps.Cell:
         cells = self._scoreboard.find(team_name)
         if len(cells) == 0:
@@ -41,6 +44,7 @@ class Sheet:
             )
         return cells[0]
 
+    @sanitize
     def changeTeamName(self, old_team_name: str, new_team_name: str):
         old_team_cell: ps.Cell = self._findTeam(old_team_name)
         old_team_cell.set_value(new_team_name)
@@ -56,6 +60,7 @@ class Sheet:
         leading_col = self._scoreboard.get_col(1, include_tailing_empty=False)
         return len(leading_col) - 1
 
+    @sanitize
     def createTeam(self, team_name: str):
         try:
             self._findTeam(team_name)
@@ -65,19 +70,19 @@ class Sheet:
             token = self._generateToken(team_name)
             self._scoreboard.insert_cols(idx, values=[team_name, *zero_pad])
             self._tokens.insert_rows(idx, values=[team_name, token])
-            self._logger.log()
+            self._logger.log(token=token)
             return {
                 "message": f"Team {team_name} created successfully",
                 "token": token,
                 "status": 200,
             }
-        else:
-            return {
-                "message": f'Team: "{team_name}" already exists!',
-                "token": "",
-                "status": 304,
-            }
+        return {
+            "message": f'Team: "{team_name}" already exists!',
+            "token": "",
+            "status": 304,
+        }
 
+    @sanitize
     def createEvent(self, event_name: str):
         idx = self._getNumberOfEvents() + 1
         zero_pad = [0 for _ in range(self._getNumberOfTeams())]
@@ -85,6 +90,7 @@ class Sheet:
         self._logger.log()
         return f'Event: "{event_name}" created', 200
 
+    @sanitize
     def _getEventTeamCell(self, event_name: str, team_name: str) -> str | None:
         try:
             team_cell = self._findTeam(team_name)
@@ -101,6 +107,7 @@ class Sheet:
 
         return None
 
+    @sanitize
     def getScores(self, team_name: str) -> tuple[dict[int, int], dict[str, int]]:
         sb = self.getScoreboard()
         assert type(sb) is pd.DataFrame
@@ -109,18 +116,21 @@ class Sheet:
         event_to_idx = {k: v for (v, k) in events.items()}
         return sb[team_name], event_to_idx
 
+    @sanitize
     def getScore(self, team_name: str, event_name: str) -> int:
         team_col, event_to_idx = self.getScores(team_name)
         score_idx = event_to_idx[event_name]
         score = team_col[score_idx]
         return score
 
+    @sanitize
     def setScore(self, event_name: str, team_name: str, score: int):
         label = self._getEventTeamCell(event_name, team_name)
         self._scoreboard.update_value(label, str(score))
         self._logger.log()
         return "success", 200
 
+    @sanitize
     def adjustScore(self, event_name: str, team_name: str, score_delta: int):
         assert type(score_delta) is int, "Score Delta must be an integer!"
         label = self._getEventTeamCell(event_name, team_name)
@@ -137,6 +147,7 @@ class Sheet:
         tokens = self._tokens.get_col(2, include_tailing_empty=False)
         return tokens
 
+    @sanitize  # HACK: probably don't need to sanitize here
     def _generateToken(self, team_name: str):
         """
         Generate a unique token based on a hash of the team name
@@ -175,6 +186,4 @@ if __name__ == "__main__":
     # sheet._findTeam("Soprano Gang")
     # sheet.addTeam("Some New Team")
     # print(sheet.getScoreboard())
-
-
-# use scoreboard.unlink() and scoreboard.link() to batch api calls
+    # use scoreboard.unlink() and scoreboard.link() to batch api calls
