@@ -8,6 +8,7 @@ from os import getenv
 
 load_dotenv()
 
+# TODO: sanitize Team Name and Event Names (case-insensitive)
 
 from flask_jwt_extended import (
     create_access_token,
