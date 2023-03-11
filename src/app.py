@@ -35,7 +35,7 @@ class Home(Resource):
     """
 
     def get(self):
-        return "Welcome to the ACM March Madness Sheet API", 200
+        return "Welcome to the ACM March Madness Sheet API!", 200
 
 
 class Login(Resource):

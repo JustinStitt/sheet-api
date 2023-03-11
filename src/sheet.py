@@ -2,6 +2,7 @@ from hashlib import new
 import json
 from os import getenv
 from typing import Literal
+import time
 
 from dotenv import load_dotenv
 import pandas as pd
@@ -15,6 +16,8 @@ load_dotenv()
 
 
 class Sheet:
+    kSCOREBOARD_DELAY = 30
+
     def __init__(self):
         self._client = Client()
         self._logger = Logger(self._client)
@@ -22,9 +25,24 @@ class Sheet:
         #     raise Exception("Client and Logger not synced.")
         self._scoreboard = self._client.scoreboard
         self._tokens = self._client.tokens
+        self.last_scoreboard_fetch_time = time.time()
+        self.last_scoreboard_fetch_data: pd.DataFrame | Literal[False] = False
 
     def getScoreboard(self) -> pd.DataFrame | Literal[False]:
-        return self._scoreboard.get_as_df()
+        current_time = time.time()
+        if (
+            current_time - self.last_scoreboard_fetch_time < Sheet.kSCOREBOARD_DELAY
+            and type(self.last_scoreboard_fetch_data) is pd.DataFrame
+        ):
+            print("cheap work")
+            return self.last_scoreboard_fetch_data
+
+        print("expensive work")
+        # expensive work
+        self.last_scoreboard_fetch_time = current_time
+        scoreboard_data = self._scoreboard.get_as_df()
+        self.last_scoreboard_fetch_data = scoreboard_data
+        return scoreboard_data
 
     @sanitize
     def _findEvent(self, event_name: str) -> ps.Cell:
