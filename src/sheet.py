@@ -16,7 +16,7 @@ load_dotenv()
 
 
 class Sheet:
-    kSCOREBOARD_DELAY = 30
+    kSCOREBOARD_DELAY = 30  # how often to refetch scoreboard data
 
     def __init__(self):
         self._client = Client()
@@ -34,10 +34,9 @@ class Sheet:
             current_time - self.last_scoreboard_fetch_time < Sheet.kSCOREBOARD_DELAY
             and type(self.last_scoreboard_fetch_data) is pd.DataFrame
         ):
-            print("cheap work")
+            # cheap work
             return self.last_scoreboard_fetch_data
 
-        print("expensive work")
         # expensive work
         self.last_scoreboard_fetch_time = current_time
         scoreboard_data = self._scoreboard.get_as_df()
@@ -157,6 +156,15 @@ class Sheet:
         self._logger.log(old_score=current_score, new_score=current_score + score_delta)
         return "success", 200
 
+    @sanitize
+    def getTeamFromToken(self, token: str):
+        tokens_to_teams: dict[str, str] = self._getTokensToTeams()
+        assert type(token) is str and len(
+            token
+        ), "Bad Token Type, must be non-empty str"
+
+        return tokens_to_teams.get(token, None)
+
     def _getTokens(self):
         """
         Retrieve the current list of tokens so we can ensure no
@@ -164,6 +172,16 @@ class Sheet:
         """
         tokens = self._tokens.get_col(2, include_tailing_empty=False)
         return tokens
+
+    def _getTokensToTeams(self) -> dict[str, str]:
+        df = self._tokens.get_as_df()
+        assert type(df) is not Literal[False], "Bad dataframe on token fetch"
+
+        tt = df.to_dict()
+        token_to_teams = {
+            tt["Token"][i]: tt["Team Name"][i] for i in range(len(tt["Token"].keys()))
+        }
+        return token_to_teams
 
     @sanitize  # HACK: probably don't need to sanitize here
     def _generateToken(self, team_name: str):
