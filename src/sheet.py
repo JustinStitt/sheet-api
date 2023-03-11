@@ -16,7 +16,7 @@ load_dotenv()
 
 
 class Sheet:
-    kSCOREBOARD_DELAY = 30  # how often to refetch scoreboard data
+    kSCOREBOARD_DELAY = 10  # how often to refetch scoreboard data
 
     def __init__(self):
         self._client = Client()
@@ -35,9 +35,11 @@ class Sheet:
             and type(self.last_scoreboard_fetch_data) is pd.DataFrame
         ):
             # cheap work
+            print("cheap")
             return self.last_scoreboard_fetch_data
 
         # expensive work
+        print("expensive")
         self.last_scoreboard_fetch_time = current_time
         scoreboard_data = self._scoreboard.get_as_df()
         self.last_scoreboard_fetch_data = scoreboard_data
@@ -45,7 +47,15 @@ class Sheet:
 
     @sanitize
     def _findEvent(self, event_name: str) -> ps.Cell:
-        cells = self._scoreboard.find(event_name)
+        cells = list(
+            filter(
+                lambda c: c.value == event_name,
+                self._scoreboard.get_col(
+                    1, returnas="cell", include_tailing_empty=False
+                ),
+            )
+        )
+
         if len(cells) == 0:
             raise ps.CellNotFound(
                 f"Could not find event: {event_name}. Check spelling (case sensitive)."
@@ -54,7 +64,14 @@ class Sheet:
 
     @sanitize
     def _findTeam(self, team_name: str) -> ps.Cell:
-        cells = self._scoreboard.find(team_name)
+        cells = list(
+            filter(
+                lambda c: c.value == team_name,
+                self._scoreboard.get_row(
+                    1, returnas="cell", include_tailing_empty=False
+                ),
+            )
+        )
         if len(cells) == 0:
             raise ps.CellNotFound(
                 f"Could not find team: {team_name}. Check spelling (case sensitive)."
