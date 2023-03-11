@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request, current_app, make_response
 from flask_restful import Api, Resource
 from flask_cors import CORS
+from datetime import timedelta
 from sheet import Sheet
 from typing import Literal
 from dotenv import load_dotenv
@@ -23,6 +24,7 @@ sheet = Sheet()
 CORS(app, resource={r"*": {"origins": "*"}})
 
 app.config["JWT_SECRET_KEY"] = getenv("JWT_SECRET_KEY")
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=10**4)
 jwt = JWTManager(app)
 
 
