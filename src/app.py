@@ -282,8 +282,9 @@ class GetTeamFromToken(Resource):
         resp = sheet.getTeamFromToken(token)
         if resp is None:  # didn't find team
             return "Couldn't find team from token", 404
-
-        return {"team": resp}, 200
+        hresp = make_response({"team": resp}, 200)
+        hresp.set_cookie("team", resp)
+        return hresp
 
 
 api.add_resource(Home, "/")
