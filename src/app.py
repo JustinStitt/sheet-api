@@ -261,6 +261,21 @@ class GetScoreboard(Resource):
 
 
 class GetTeamFromToken(Resource):
+    """
+    Serves the "/token_lookup" endpoint with method(s): [GET]
+
+    Finds the team associated with a given `token`.
+
+    Usage: https://<base-url>/token_lookup?token=`token`
+
+    Response:
+        - 200 -> {team: <team-matching-specific-token>}
+
+        - 404 -> "Couldn't find team from `token`"
+
+        - Else -> Something Went Wrong
+    """
+
     def get(self):
         args = request.args
         token = args["token"]

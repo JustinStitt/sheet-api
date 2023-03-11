@@ -26,14 +26,17 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">from flask import Flask, jsonify, request, current_app
+<pre><code class="python">from flask import Flask, jsonify, request, current_app, make_response
 from flask_restful import Api, Resource
+from flask_cors import CORS
 from sheet import Sheet
 from typing import Literal
 from dotenv import load_dotenv
 from os import getenv
 
 load_dotenv()
+
+# TODO: sanitize Team Name and Event Names (case-insensitive)
 
 from flask_jwt_extended import (
     create_access_token,
@@ -45,6 +48,7 @@ from flask_jwt_extended import (
 app = Flask(__name__, static_folder=&#34;../docs&#34;)
 api = Api(app)
 sheet = Sheet()
+CORS(app, resource={r&#34;*&#34;: {&#34;origins&#34;: &#34;*&#34;}})
 
 app.config[&#34;JWT_SECRET_KEY&#34;] = getenv(&#34;JWT_SECRET_KEY&#34;)
 jwt = JWTManager(app)
@@ -59,7 +63,7 @@ class Home(Resource):
     &#34;&#34;&#34;
 
     def get(self):
-        return &#34;Welcome to the ACM March Madness Sheet API&#34;, 200
+        return &#34;Welcome to the ACM March Madness Sheet API!&#34;, 200
 
 
 class Login(Resource):
@@ -98,12 +102,13 @@ class CreateTeam(Resource):
 
     &#34;&#34;&#34;
 
-    @jwt_required()
     def post(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
         resp = sheet.createTeam(team_name)
-        return resp
+        if resp[&#34;status&#34;] == 200:
+            return make_response(jsonify(resp), 200)
+        return make_response(jsonify(resp), 304)
 
 
 class CreateEvent(Resource):
@@ -283,6 +288,32 @@ class GetScoreboard(Resource):
         return scoreboard.to_json(orient=&#34;records&#34;)
 
 
+class GetTeamFromToken(Resource):
+    &#34;&#34;&#34;
+    Serves the &#34;/token_lookup&#34; endpoint with method(s): [GET]
+
+    Finds the team associated with a given `token`.
+
+    Usage: https://&lt;base-url&gt;/token_lookup?token=`token`
+
+    Response:
+        - 200 -&gt; {team: &lt;team-matching-specific-token&gt;}
+
+        - 404 -&gt; &#34;Couldn&#39;t find team from `token`&#34;
+
+        - Else -&gt; Something Went Wrong
+    &#34;&#34;&#34;
+
+    def get(self):
+        args = request.args
+        token = args[&#34;token&#34;]
+        resp = sheet.getTeamFromToken(token)
+        if resp is None:  # didn&#39;t find team
+            return &#34;Couldn&#39;t find team from token&#34;, 404
+
+        return {&#34;team&#34;: resp}, 200
+
+
 api.add_resource(Home, &#34;/&#34;)
 api.add_resource(Login, &#34;/login&#34;)
 api.add_resource(Docs, &#34;/docs&#34;)
@@ -294,6 +325,7 @@ api.add_resource(SetScore, &#34;/set_score&#34;)
 api.add_resource(AdjustScore, &#34;/adjust_score&#34;)
 api.add_resource(ChangeTeamName, &#34;/change_team_name&#34;)
 api.add_resource(GetScoreboard, &#34;/scoreboard&#34;)
+api.add_resource(GetTeamFromToken, &#34;/token_lookup&#34;)
 
 if __name__ == &#34;__main__&#34;:
     app.run(debug=True)</code></pre>
@@ -662,12 +694,13 @@ def post(self):
 
     &#34;&#34;&#34;
 
-    @jwt_required()
     def post(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
         resp = sheet.createTeam(team_name)
-        return resp</code></pre>
+        if resp[&#34;status&#34;] == 200:
+            return make_response(jsonify(resp), 200)
+        return make_response(jsonify(resp), 304)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -709,12 +742,13 @@ def post(self):
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">@jwt_required()
-def post(self):
+<pre><code class="python">def post(self):
     args = request.args
     team_name = args[&#34;team_name&#34;]
     resp = sheet.createTeam(team_name)
-    return resp</code></pre>
+    if resp[&#34;status&#34;] == 200:
+        return make_response(jsonify(resp), 200)
+    return make_response(jsonify(resp), 304)</code></pre>
 </details>
 </dd>
 </dl>
@@ -1049,6 +1083,106 @@ from the url rule used when adding the resource to an Api instance. See
 </dd>
 </dl>
 </dd>
+<dt id="app.GetTeamFromToken"><code class="flex name class">
+<span>class <span class="ident">GetTeamFromToken</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Serves the "/token_lookup" endpoint with method(s): [GET]</p>
+<p>Finds the team associated with a given <code>token</code>.</p>
+<p>Usage: <https://\<base-url>>/token_lookup?token=<code>token</code></p>
+<h2 id="response">Response</h2>
+<ul>
+<li>
+<p>200 -&gt; {team: <team-matching-specific-token>}</p>
+</li>
+<li>
+<p>404 -&gt; "Couldn't find team from <code>token</code>"</p>
+</li>
+<li>
+<p>Else -&gt; Something Went Wrong</p>
+</li>
+</ul></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetTeamFromToken(Resource):
+    &#34;&#34;&#34;
+    Serves the &#34;/token_lookup&#34; endpoint with method(s): [GET]
+
+    Finds the team associated with a given `token`.
+
+    Usage: https://&lt;base-url&gt;/token_lookup?token=`token`
+
+    Response:
+        - 200 -&gt; {team: &lt;team-matching-specific-token&gt;}
+
+        - 404 -&gt; &#34;Couldn&#39;t find team from `token`&#34;
+
+        - Else -&gt; Something Went Wrong
+    &#34;&#34;&#34;
+
+    def get(self):
+        args = request.args
+        token = args[&#34;token&#34;]
+        resp = sheet.getTeamFromToken(token)
+        if resp is None:  # didn&#39;t find team
+            return &#34;Couldn&#39;t find team from token&#34;, 404
+
+        return {&#34;team&#34;: resp}, 200</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.GetTeamFromToken.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.GetTeamFromToken.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.GetTeamFromToken.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    args = request.args
+    token = args[&#34;token&#34;]
+    resp = sheet.getTeamFromToken(token)
+    if resp is None:  # didn&#39;t find team
+        return &#34;Couldn&#39;t find team from token&#34;, 404
+
+    return {&#34;team&#34;: resp}, 200</code></pre>
+</details>
+</dd>
+<dt id="app.GetTeamFromToken.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
 <dt id="app.Home"><code class="flex name class">
 <span>class <span class="ident">Home</span></span>
 </code></dt>
@@ -1068,7 +1202,7 @@ from the url rule used when adding the resource to an Api instance. See
     &#34;&#34;&#34;
 
     def get(self):
-        return &#34;Welcome to the ACM March Madness Sheet API&#34;, 200</code></pre>
+        return &#34;Welcome to the ACM March Madness Sheet API!&#34;, 200</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1099,7 +1233,7 @@ from the url rule used when adding the resource to an Api instance. See
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get(self):
-    return &#34;Welcome to the ACM March Madness Sheet API&#34;, 200</code></pre>
+    return &#34;Welcome to the ACM March Madness Sheet API!&#34;, 200</code></pre>
 </details>
 </dd>
 <dt id="app.Home.mediatypes"><code class="name flex">
@@ -1382,6 +1516,15 @@ def post(self):
 <li><code><a title="app.GetScores.get" href="#app.GetScores.get">get</a></code></li>
 <li><code><a title="app.GetScores.mediatypes" href="#app.GetScores.mediatypes">mediatypes</a></code></li>
 <li><code><a title="app.GetScores.methods" href="#app.GetScores.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.GetTeamFromToken" href="#app.GetTeamFromToken">GetTeamFromToken</a></code></h4>
+<ul class="">
+<li><code><a title="app.GetTeamFromToken.endpoint" href="#app.GetTeamFromToken.endpoint">endpoint</a></code></li>
+<li><code><a title="app.GetTeamFromToken.get" href="#app.GetTeamFromToken.get">get</a></code></li>
+<li><code><a title="app.GetTeamFromToken.mediatypes" href="#app.GetTeamFromToken.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.GetTeamFromToken.methods" href="#app.GetTeamFromToken.methods">methods</a></code></li>
 </ul>
 </li>
 <li>
