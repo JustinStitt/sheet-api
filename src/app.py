@@ -24,7 +24,9 @@ load_dotenv()
 app = Flask(__name__, static_folder="../docs")
 api = Api(app)
 sheet = Sheet()
-CORS(app, resource={r"*": {"origins": "*"}})
+CORS(
+    app, resource={r"*": {"origins": "*"}}
+)  # might need supports_credentials for set-cookie
 
 app.config["JWT_SECRET_KEY"] = getenv("JWT_SECRET_KEY")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=10**4)
