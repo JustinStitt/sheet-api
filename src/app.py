@@ -102,7 +102,9 @@ class CreateTeam(Resource):
         team_name = args["team_name"]
         resp = sheet.createTeam(team_name)
         if resp["status"] == 200:
-            return make_response(jsonify(resp), 200)
+            res = make_response(jsonify(resp), 200)
+            res.set_cookie("team", resp["team_name"])
+            return res
         return make_response(jsonify(resp), 304)
 
 

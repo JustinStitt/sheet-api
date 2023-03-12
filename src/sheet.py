@@ -108,11 +108,13 @@ class Sheet:
             return {
                 "message": f"Team {team_name} created successfully",
                 "token": token,
+                "team_name": team_name,
                 "status": 200,
             }
         return {
             "message": f'Team: "{team_name}" already exists!',
             "token": "",
+            "team_name": team_name,
             "status": 304,
         }
 
