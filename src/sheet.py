@@ -10,6 +10,7 @@ import pygsheets as ps
 
 from client import Client
 from logger import Logger
+from graph import Graph
 from sanitize import sanitize
 
 load_dotenv()
@@ -21,8 +22,6 @@ class Sheet:
     def __init__(self):
         self._client = Client()
         self._logger = Logger(self._client)
-        # if logger and client.client != logger._client:
-        #     raise Exception("Client and Logger not synced.")
         self._scoreboard = self._client.scoreboard
         self._tokens = self._client.tokens
         self.last_scoreboard_fetch_time = time.time()
@@ -229,9 +228,15 @@ class Sheet:
 
         return token
 
+    def getGraph(self):
+        log = self._logger.getLog()
+        graph = Graph(log)
+        return graph.parse()
+
 
 if __name__ == "__main__":
     sheet = Sheet()
+    sheet._generateGraph()
     # sheet.setScore("HACKATHON", "Team Three", 99)
     # scores = sheet.getScores("Team Three")
     # sheet.adjustScore("AOC-4", "Team Four", 6)

@@ -314,6 +314,12 @@ class GetTeamFromToken(Resource):
         return hresp
 
 
+class GetGraphData(Resource):
+    def get(self):
+        resp = sheet.getGraph()
+        return resp, 200
+
+
 api.add_resource(Home, "/")
 api.add_resource(Login, "/login")
 api.add_resource(Docs, "/docs")
@@ -326,6 +332,7 @@ api.add_resource(AdjustScore, "/adjust_score")
 api.add_resource(ChangeTeamName, "/change_team_name")
 api.add_resource(GetScoreboard, "/scoreboard")
 api.add_resource(GetTeamFromToken, "/token_lookup")
+api.add_resource(GetGraphData, "/get_graph")
 
 if __name__ == "__main__":
     app.run(debug=True)
