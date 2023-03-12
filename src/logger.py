@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 import inspect
 
 import pytz
@@ -24,8 +25,9 @@ class Logger:
         assert previous_frame is not None
 
         args, _, _, values = inspect.getargvalues(previous_frame)
-
-        row = [str(pst_time), previous_frame.f_code.co_name]
+        time = str(pst_time)
+        time = time[0 : time.index(".")]
+        row = [time, previous_frame.f_code.co_name]
 
         for arg in args:
             if arg == "self":
@@ -36,3 +38,7 @@ class Logger:
             row.append(f"{k}={v}")
 
         self._log.append_table(row, overwrite=True)
+
+    def getLog(self):
+        # TODO: add start, end timing args for log slices
+        return self._log.get_as_df()
