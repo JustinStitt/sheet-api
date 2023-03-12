@@ -106,7 +106,7 @@ class CreateTeam(Resource):
             res = make_response(jsonify(resp), 200)
             res.set_cookie("team", resp["team_name"])
             return res
-        return make_response(jsonify(resp), 304)
+        return make_response(jsonify(resp), int(resp["status"]))
 
 
 class CreateEvent(Resource):

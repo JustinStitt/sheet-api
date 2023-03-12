@@ -95,6 +95,13 @@ class Sheet:
 
     @sanitize
     def createTeam(self, team_name: str):
+        if len(team_name) < 1:
+            return {
+                "message": "invalid team name",
+                "token": "",
+                "team_name": team_name,
+                "status": 404,
+            }
         try:
             self._findTeam(team_name)
         except:
