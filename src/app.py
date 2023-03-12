@@ -97,7 +97,7 @@ class CreateTeam(Resource):
 
     """
 
-    def post(self):
+    def get(self):
         args = request.args
         team_name = args["team_name"]
         resp = sheet.createTeam(team_name)
@@ -259,6 +259,7 @@ class ChangeTeamName(Resource):
 
     @jwt_required()
     def post(self):
+        # FIX: won't make a new token on name change (don't use this endpoint for now)
         args = request.args
         team_name = args["team_name"]
         new_name = args["new_name"]
