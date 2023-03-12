@@ -1,4 +1,5 @@
 from datetime import datetime
+from collections import defaultdict
 
 from pandas import DataFrame
 
@@ -11,7 +12,7 @@ class Graph:
         """strips before equal sign"""
         return arg[arg.index("=") + 1 :]
 
-    def parse(self) -> dict[str, list[str]]:
+    def parse(self) -> dict:
         assert type(self.data) is DataFrame, "Graph data is of wrong type"
         self.data = self.data.to_dict()
         # keys = self.data.keys()
@@ -22,14 +23,16 @@ class Graph:
         ), "mismatched lengths for times, actions. can't construct graph"
         args = [self.data[k] for k in "CDEFG"]
 
-        xs = []
-        ys = []
+        xs = defaultdict(lambda: list())
+        ys = defaultdict(lambda: list())
         teams = []
         for idx, (_time, action) in enumerate(zip(times, actions)):
             if "adjustScore" not in action:
                 continue
             # time = datetime.strptime(_time, "%Y-%m-%d %H:%M:%S") # to datetime obj
-            xs.append(_time)
-            ys.append(self._cleanArg(args[4][idx]))
-            teams.append(self._cleanArg(args[1][idx]))
+            team = self._cleanArg(args[1][idx])
+            score_delta = self._cleanArg(args[4][idx])
+            xs[team].append(_time)
+            ys[team].append(score_delta)
+            teams.append(team)
         return {"xs": xs, "ys": ys, "teams": teams}
