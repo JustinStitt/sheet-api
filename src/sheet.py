@@ -95,9 +95,9 @@ class Sheet:
 
     @sanitize
     def createTeam(self, team_name: str):
-        if len(team_name) < 1:
+        if len(team_name) <= 1 or len(team_name) > 32:
             return {
-                "message": "invalid team name",
+                "message": "Invalid team name length. Length must be greater than 1 and less than 33",
                 "token": "",
                 "team_name": team_name,
                 "status": 404,
