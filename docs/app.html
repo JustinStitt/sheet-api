@@ -26,32 +26,56 @@
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">from flask import Flask, jsonify, request, current_app, make_response
-from flask_restful import Api, Resource
-from flask_cors import CORS
-from sheet import Sheet
-from typing import Literal
-from dotenv import load_dotenv
+<pre><code class="python">from datetime import timedelta
 from os import getenv
+import time
+from typing import Literal
 
-load_dotenv()
+from flask_cors import CORS
 
-# TODO: sanitize Team Name and Event Names (case-insensitive)
-
+from dotenv import load_dotenv
+from flask import Flask, current_app, jsonify, make_response, request, g as app_ctx
 from flask_jwt_extended import (
+    JWTManager,
     create_access_token,
     get_jwt_identity,
     jwt_required,
-    JWTManager,
 )
+from flask_restful import Api, Resource
+from sheet import Sheet
+import logging
 
+load_dotenv()
+
+logging.basicConfig(filename=&#34;flask.log&#34;, level=logging.DEBUG)
 app = Flask(__name__, static_folder=&#34;../docs&#34;)
 api = Api(app)
 sheet = Sheet()
-CORS(app, resource={r&#34;*&#34;: {&#34;origins&#34;: &#34;*&#34;}})
+CORS(
+    app, resources={r&#34;*&#34;: {&#34;origins&#34;: &#34;*&#34;}}
+)  # might need supports_credentials for set-cookie
 
 app.config[&#34;JWT_SECRET_KEY&#34;] = getenv(&#34;JWT_SECRET_KEY&#34;)
+app.config[&#34;JWT_ACCESS_TOKEN_EXPIRES&#34;] = timedelta(hours=10**4)
 jwt = JWTManager(app)
+
+
+@app.before_request
+def logging_before():
+    # Store the start time for the request
+    app_ctx.start_time = time.perf_counter()
+
+
+@app.after_request
+def logging_after(response):
+    # Get total time in milliseconds
+    total_time = time.perf_counter() - app_ctx.start_time
+    time_in_ms = int(total_time * 1000)
+    # Log the time taken for the endpoint
+    current_app.logger.info(
+        &#34;%s ms %s %s %s&#34;, time_in_ms, request.method, request.path, dict(request.args)
+    )
+    return response
 
 
 class Home(Resource):
@@ -102,12 +126,14 @@ class CreateTeam(Resource):
 
     &#34;&#34;&#34;
 
-    def post(self):
+    def get(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
         resp = sheet.createTeam(team_name)
         if resp[&#34;status&#34;] == 200:
-            return make_response(jsonify(resp), 200)
+            res = make_response(jsonify(resp), 200)
+            res.set_cookie(&#34;team&#34;, resp[&#34;team_name&#34;])
+            return res
         return make_response(jsonify(resp), 304)
 
 
@@ -262,6 +288,7 @@ class ChangeTeamName(Resource):
 
     @jwt_required()
     def post(self):
+        # FIX: won&#39;t make a new token on name change (don&#39;t use this endpoint for now)
         args = request.args
         team_name = args[&#34;team_name&#34;]
         new_name = args[&#34;new_name&#34;]
@@ -310,8 +337,27 @@ class GetTeamFromToken(Resource):
         resp = sheet.getTeamFromToken(token)
         if resp is None:  # didn&#39;t find team
             return &#34;Couldn&#39;t find team from token&#34;, 404
+        hresp = make_response({&#34;team&#34;: resp}, 200)
+        hresp.set_cookie(&#34;team&#34;, resp)
+        return hresp
 
-        return {&#34;team&#34;: resp}, 200
+
+class GetGraphData(Resource):
+    &#34;&#34;&#34;
+    Serves the &#34;/get_graph&#34; endpoint with method(s): [GET]
+
+    Return some graph data. Only checks (&#39;adjust_score&#39;) method for plotting.
+
+    Response:
+        - 200 -&gt; Some graph data
+            - {xs: {`team_name0`: [`times`], }, ys: {`team_name0`: [`scores`]}, teams: [`teams`]}
+
+        - Else -&gt; Something Went Wrong
+    &#34;&#34;&#34;
+
+    def get(self):
+        resp = sheet.getGraph()
+        return resp, 200
 
 
 api.add_resource(Home, &#34;/&#34;)
@@ -326,6 +372,7 @@ api.add_resource(AdjustScore, &#34;/adjust_score&#34;)
 api.add_resource(ChangeTeamName, &#34;/change_team_name&#34;)
 api.add_resource(GetScoreboard, &#34;/scoreboard&#34;)
 api.add_resource(GetTeamFromToken, &#34;/token_lookup&#34;)
+api.add_resource(GetGraphData, &#34;/get_graph&#34;)
 
 if __name__ == &#34;__main__&#34;:
     app.run(debug=True)</code></pre>
@@ -336,6 +383,45 @@ if __name__ == &#34;__main__&#34;:
 <section>
 </section>
 <section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="app.logging_after"><code class="name flex">
+<span>def <span class="ident">logging_after</span></span>(<span>response)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@app.after_request
+def logging_after(response):
+    # Get total time in milliseconds
+    total_time = time.perf_counter() - app_ctx.start_time
+    time_in_ms = int(total_time * 1000)
+    # Log the time taken for the endpoint
+    current_app.logger.info(
+        &#34;%s ms %s %s %s&#34;, time_in_ms, request.method, request.path, dict(request.args)
+    )
+    return response</code></pre>
+</details>
+</dd>
+<dt id="app.logging_before"><code class="name flex">
+<span>def <span class="ident">logging_before</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@app.before_request
+def logging_before():
+    # Store the start time for the request
+    app_ctx.start_time = time.perf_counter()</code></pre>
+</details>
+</dd>
+</dl>
 </section>
 <section>
 <h2 class="section-title" id="header-classes">Classes</h2>
@@ -496,6 +582,7 @@ Sets the current score for a team for a specific event.</p>
 
     @jwt_required()
     def post(self):
+        # FIX: won&#39;t make a new token on name change (don&#39;t use this endpoint for now)
         args = request.args
         team_name = args[&#34;team_name&#34;]
         new_name = args[&#34;new_name&#34;]
@@ -544,6 +631,7 @@ Sets the current score for a team for a specific event.</p>
 </summary>
 <pre><code class="python">@jwt_required()
 def post(self):
+    # FIX: won&#39;t make a new token on name change (don&#39;t use this endpoint for now)
     args = request.args
     team_name = args[&#34;team_name&#34;]
     new_name = args[&#34;new_name&#34;]
@@ -694,12 +782,14 @@ def post(self):
 
     &#34;&#34;&#34;
 
-    def post(self):
+    def get(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
         resp = sheet.createTeam(team_name)
         if resp[&#34;status&#34;] == 200:
-            return make_response(jsonify(resp), 200)
+            res = make_response(jsonify(resp), 200)
+            res.set_cookie(&#34;team&#34;, resp[&#34;team_name&#34;])
+            return res
         return make_response(jsonify(resp), 304)</code></pre>
 </details>
 <h3>Ancestors</h3>
@@ -721,6 +811,26 @@ def post(self):
 </dl>
 <h3>Methods</h3>
 <dl>
+<dt id="app.CreateTeam.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    args = request.args
+    team_name = args[&#34;team_name&#34;]
+    resp = sheet.createTeam(team_name)
+    if resp[&#34;status&#34;] == 200:
+        res = make_response(jsonify(resp), 200)
+        res.set_cookie(&#34;team&#34;, resp[&#34;team_name&#34;])
+        return res
+    return make_response(jsonify(resp), 304)</code></pre>
+</details>
+</dd>
 <dt id="app.CreateTeam.mediatypes"><code class="name flex">
 <span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
 </code></dt>
@@ -731,24 +841,6 @@ def post(self):
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
-</details>
-</dd>
-<dt id="app.CreateTeam.post"><code class="name flex">
-<span>def <span class="ident">post</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def post(self):
-    args = request.args
-    team_name = args[&#34;team_name&#34;]
-    resp = sheet.createTeam(team_name)
-    if resp[&#34;status&#34;] == 200:
-        return make_response(jsonify(resp), 200)
-    return make_response(jsonify(resp), 304)</code></pre>
 </details>
 </dd>
 </dl>
@@ -805,6 +897,92 @@ from the url rule used when adding the resource to an Api instance. See
 </details>
 </dd>
 <dt id="app.Docs.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.GetGraphData"><code class="flex name class">
+<span>class <span class="ident">GetGraphData</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Serves the "/get_graph" endpoint with method(s): [GET]</p>
+<p>Return some graph data. Only checks ('adjust_score') method for plotting.</p>
+<h2 id="response">Response</h2>
+<ul>
+<li>
+<p>200 -&gt; Some graph data</p>
+<ul>
+<li>{xs: {<code>team_name0</code>: [<code>times</code>], }, ys: {<code>team_name0</code>: [<code>scores</code>]}, teams: [<code>teams</code>]}</li>
+</ul>
+</li>
+<li>
+<p>Else -&gt; Something Went Wrong</p>
+</li>
+</ul></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetGraphData(Resource):
+    &#34;&#34;&#34;
+    Serves the &#34;/get_graph&#34; endpoint with method(s): [GET]
+
+    Return some graph data. Only checks (&#39;adjust_score&#39;) method for plotting.
+
+    Response:
+        - 200 -&gt; Some graph data
+            - {xs: {`team_name0`: [`times`], }, ys: {`team_name0`: [`scores`]}, teams: [`teams`]}
+
+        - Else -&gt; Something Went Wrong
+    &#34;&#34;&#34;
+
+    def get(self):
+        resp = sheet.getGraph()
+        return resp, 200</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.GetGraphData.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.GetGraphData.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.GetGraphData.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    resp = sheet.getGraph()
+    return resp, 200</code></pre>
+</details>
+</dd>
+<dt id="app.GetGraphData.mediatypes"><code class="name flex">
 <span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
 </code></dt>
 <dd>
@@ -1128,8 +1306,9 @@ from the url rule used when adding the resource to an Api instance. See
         resp = sheet.getTeamFromToken(token)
         if resp is None:  # didn&#39;t find team
             return &#34;Couldn&#39;t find team from token&#34;, 404
-
-        return {&#34;team&#34;: resp}, 200</code></pre>
+        hresp = make_response({&#34;team&#34;: resp}, 200)
+        hresp.set_cookie(&#34;team&#34;, resp)
+        return hresp</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1165,8 +1344,9 @@ from the url rule used when adding the resource to an Api instance. See
     resp = sheet.getTeamFromToken(token)
     if resp is None:  # didn&#39;t find team
         return &#34;Couldn&#39;t find team from token&#34;, 404
-
-    return {&#34;team&#34;: resp}, 200</code></pre>
+    hresp = make_response({&#34;team&#34;: resp}, 200)
+    hresp.set_cookie(&#34;team&#34;, resp)
+    return hresp</code></pre>
 </details>
 </dd>
 <dt id="app.GetTeamFromToken.mediatypes"><code class="name flex">
@@ -1444,6 +1624,12 @@ def post(self):
 <ul></ul>
 </div>
 <ul id="index">
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="app.logging_after" href="#app.logging_after">logging_after</a></code></li>
+<li><code><a title="app.logging_before" href="#app.logging_before">logging_before</a></code></li>
+</ul>
+</li>
 <li><h3><a href="#header-classes">Classes</a></h3>
 <ul>
 <li>
@@ -1477,9 +1663,9 @@ def post(self):
 <h4><code><a title="app.CreateTeam" href="#app.CreateTeam">CreateTeam</a></code></h4>
 <ul class="">
 <li><code><a title="app.CreateTeam.endpoint" href="#app.CreateTeam.endpoint">endpoint</a></code></li>
+<li><code><a title="app.CreateTeam.get" href="#app.CreateTeam.get">get</a></code></li>
 <li><code><a title="app.CreateTeam.mediatypes" href="#app.CreateTeam.mediatypes">mediatypes</a></code></li>
 <li><code><a title="app.CreateTeam.methods" href="#app.CreateTeam.methods">methods</a></code></li>
-<li><code><a title="app.CreateTeam.post" href="#app.CreateTeam.post">post</a></code></li>
 </ul>
 </li>
 <li>
@@ -1489,6 +1675,15 @@ def post(self):
 <li><code><a title="app.Docs.get" href="#app.Docs.get">get</a></code></li>
 <li><code><a title="app.Docs.mediatypes" href="#app.Docs.mediatypes">mediatypes</a></code></li>
 <li><code><a title="app.Docs.methods" href="#app.Docs.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.GetGraphData" href="#app.GetGraphData">GetGraphData</a></code></h4>
+<ul class="">
+<li><code><a title="app.GetGraphData.endpoint" href="#app.GetGraphData.endpoint">endpoint</a></code></li>
+<li><code><a title="app.GetGraphData.get" href="#app.GetGraphData.get">get</a></code></li>
+<li><code><a title="app.GetGraphData.mediatypes" href="#app.GetGraphData.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.GetGraphData.methods" href="#app.GetGraphData.methods">methods</a></code></li>
 </ul>
 </li>
 <li>

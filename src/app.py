@@ -315,6 +315,18 @@ class GetTeamFromToken(Resource):
 
 
 class GetGraphData(Resource):
+    """
+    Serves the "/get_graph" endpoint with method(s): [GET]
+
+    Return some graph data. Only checks ('adjust_score') method for plotting.
+
+    Response:
+        - 200 -> Some graph data
+            - {xs: {`team_name0`: [`times`], }, ys: {`team_name0`: [`scores`]}, teams: [`teams`]}
+
+        - Else -> Something Went Wrong
+    """
+
     def get(self):
         resp = sheet.getGraph()
         return resp, 200
