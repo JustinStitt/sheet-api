@@ -7,6 +7,10 @@ class Graph:
     def __init__(self, data):
         self.data = data
 
+    def _cleanArg(self, arg: str):
+        """strips before equal sign"""
+        return arg[arg.index("=") + 1 :]
+
     def parse(self) -> dict[str, list[str]]:
         assert type(self.data) is DataFrame, "Graph data is of wrong type"
         self.data = self.data.to_dict()
@@ -24,8 +28,8 @@ class Graph:
         for idx, (_time, action) in enumerate(zip(times, actions)):
             if "adjustScore" not in action:
                 continue
-            # time = datetime.strptime(_time, "%Y-%m-%d %H:%M:%S")
+            # time = datetime.strptime(_time, "%Y-%m-%d %H:%M:%S") # to datetime obj
             xs.append(_time)
-            ys.append(args[4][idx])
-            teams.append(args[1][idx])
+            ys.append(self._cleanArg(args[4][idx]))
+            teams.append(self._cleanArg(args[1][idx]))
         return {"xs": xs, "ys": ys, "teams": teams}
