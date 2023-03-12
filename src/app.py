@@ -15,12 +15,11 @@ from flask_jwt_extended import (
 )
 from flask_restful import Api, Resource
 from sheet import Sheet
+import logging
 
 load_dotenv()
 
-# TODO: sanitize Team Name and Event Names (case-insensitive)
-
-
+logging.basicConfig(filename="flask.log", level=logging.DEBUG)
 app = Flask(__name__, static_folder="../docs")
 api = Api(app)
 sheet = Sheet()
