@@ -24,7 +24,7 @@ app = Flask(__name__, static_folder="../docs")
 api = Api(app)
 sheet = Sheet()
 CORS(
-    app, resource={r"*": {"origins": "*"}}
+    app, resources={r"*": {"origins": "*"}}
 )  # might need supports_credentials for set-cookie
 
 app.config["JWT_SECRET_KEY"] = getenv("JWT_SECRET_KEY")
