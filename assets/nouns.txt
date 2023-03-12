@@ -9,17 +9,15 @@ Fish
 Chicken
 Horse
 Dog
-Llamas
+Llama
 Ostrich
-Camels
+Camel
 Shrimp
 Deer
 Turkey
 Dove
 Sheep
 Cat
-Geese
-Oxen
 Reindeer
 Antelope
 wolf
@@ -58,7 +56,6 @@ Tiger
 Walrus
 Bison
 Reindeer
-Possum
 Chipmunk
 Porcupine
 Wolf
@@ -75,9 +72,8 @@ Capybara
 Macaw
 Frog
 monkey
-cuscus
 Anaconda
-Lions
+Lion
 Deer
 Giraffe
 Hippo
@@ -94,7 +90,7 @@ Zebra
 Sheep
 Caterpillar
 Donkey
-Sloths
+Sloth
 Ox
 Wolf
 Lion
@@ -108,7 +104,7 @@ Hawk
 Eagle
 Fox
 Snake
-Seals
+Seal
 Vulture
 Jackal
 Mongoose
@@ -120,10 +116,8 @@ Pig
 Ant
 Bear
 Dog
-Emus
 Ostrich
 Human
-Raccoon
 Aardvark
 Alligator
 Alpaca
@@ -131,10 +125,7 @@ Anaconda
 Ant
 Anteater
 Antelope
-Aphid
 Armadillo
-Asp
-Ass
 Baboon
 Badger
 Eagle
@@ -155,7 +146,6 @@ Whale
 Bobcat
 Buffalo
 Butterfly
-Buzzard
 Camel
 Lynx
 Carp
@@ -220,7 +210,6 @@ Lion
 Lizard
 Llama
 Lobster
-Margay
 lizard
 Monkey
 Moose

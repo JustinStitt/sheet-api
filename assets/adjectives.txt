@@ -1,6 +1,4 @@
 adorable
-adventurous
-aggressive
 agreeable
 alert
 alive
@@ -127,7 +125,6 @@ lovely
 lucky
 misty
 modern
-motionless
 muddy
 mushy
 mysterious
