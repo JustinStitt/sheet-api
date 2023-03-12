@@ -100,7 +100,7 @@ class Sheet:
                 "message": "Invalid team name length. Length must be greater than 1 and less than 33",
                 "token": "",
                 "team_name": team_name,
-                "status": 404,
+                "status": 403,
             }
         try:
             self._findTeam(team_name)
