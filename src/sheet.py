@@ -2,6 +2,7 @@ from hashlib import new
 import json
 from os import getenv
 from typing import Literal
+from hashlib import sha1
 import time
 
 from dotenv import load_dotenv
@@ -10,6 +11,7 @@ import pygsheets as ps
 
 from client import Client
 from logger import Logger
+from judge import Judge
 from graph import Graph
 from sanitize import sanitize
 
@@ -22,6 +24,7 @@ class Sheet:
     def __init__(self):
         self._client = Client()
         self._logger = Logger(self._client)
+        self._judge = Judge(self._client.problems)
         self._scoreboard = self._client.scoreboard
         self._tokens = self._client.tokens
         self.last_scoreboard_fetch_time = time.time()
@@ -213,7 +216,6 @@ class Sheet:
         """
         Generate a unique token based on a hash of the team name
         """
-        from hashlib import sha1
 
         team_name = team_name.replace(" ", "").lower()
 
@@ -240,17 +242,13 @@ class Sheet:
         graph = Graph(log)
         return graph.parse()
 
+    def getRandomInputIndexForTeam(self, num_inputs: int, team_name: str) -> int:
+        """hash team name and return index from [0, 99]"""
+        team_hash = sha1(team_name.encode()).hexdigest()
+        return int(team_hash) % num_inputs
+
 
 if __name__ == "__main__":
     sheet = Sheet()
-    sheet._generateGraph()
-    # sheet.setScore("HACKATHON", "Team Three", 99)
-    # scores = sheet.getScores("Team Three")
-    # sheet.adjustScore("AOC-4", "Team Four", 6)
-    # sheet.createTeam("Team Five")
-    # sheet.createEvent("Cool Event")
-    # sheet.changeTeamName("Flying Felines", "V2 Coolio Team")
-    # sheet._findTeam("Soprano Gang")
-    # sheet.addTeam("Some New Team")
-    # print(sheet.getScoreboard())
-    # use scoreboard.unlink() and scoreboard.link() to batch api calls
+    judgement = sheet._judge.getJudgement("1b", 0, "969")
+    print(judgement)
