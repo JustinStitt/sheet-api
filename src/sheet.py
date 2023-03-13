@@ -304,8 +304,8 @@ class Sheet:
 
 if __name__ == "__main__":
     sheet = Sheet()
-    # sheet.createTeam("coolnewteam", "justin")
-    sheet.joinTeam("tendergoat", "kevin")
+    sheet.createTeam("asdfffasd", "kevin")
+    # sheet.joinTeam("tendergoat", "kevin")
     # index = sheet.getRandomInputIndexForTeam(100, "teamtwoayo")
     # print("index: ", index)
     # print(sheet.getJudgement("1b", index, "861", "teamtwoayo"))

@@ -81,7 +81,7 @@ class Docs(Resource):
 
 class CreateTeam(Resource):
     """
-    Serves the "/create_team" endpoint with method(s): [POST]
+    Serves the "/create_team" endpoint with method(s): [GET]
 
     Creates a new team for the ACM March Madness Event. Adds to Google Sheet backend.
 
@@ -101,7 +101,7 @@ class CreateTeam(Resource):
     def get(self):
         args = request.args
         team_name = args["team_name"]
-        captain_name = args["captain_name"] or "no captain"
+        captain_name = args["captain_name"]
         resp = sheet.createTeam(team_name, captain_name)
         if resp["status"] == 200:
             res = make_response(jsonify(resp), 200)
