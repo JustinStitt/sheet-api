@@ -345,8 +345,9 @@ class GetJudgement(Resource):
     def get(self):
         args = request.args
         problem = args["problem"]
-        input_idx = int(args["input_index"])
+        # input_idx = int(args["input_index"])
         team_name = args["team_name"]
+        input_idx = sheet.getRandomInputIndexForTeam(100, team_name)
         if input_idx not in range(0, 100):
             return {"message": "bad input index"}, 403
         output = args["output"]
