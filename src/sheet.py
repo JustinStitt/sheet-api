@@ -24,7 +24,7 @@ class Sheet:
     def __init__(self):
         self._client = Client()
         self._logger = Logger(self._client)
-        self._judge = Judge(self._client.problems)
+        self._judge = Judge(self._client.problems, self._client.submissions)
         self._scoreboard = self._client.scoreboard
         self._tokens = self._client.tokens
         self.last_scoreboard_fetch_time = time.time()
@@ -247,11 +247,16 @@ class Sheet:
         team_hash = sha1(team_name.encode()).hexdigest()
         return int(team_hash, 16) % num_inputs
 
-    def getJudgement(self, problem: str, input_idx: int, output: str) -> bool:
-        return self._judge.getJudgement(problem, input_idx, output)
+    def getJudgement(
+        self, problem: str, input_idx: int, output: str, team_name: str
+    ) -> bool:
+        return self._judge.getJudgement(problem, input_idx, output, team_name)
+
+    def getPastSubmissions(self, team_name: str, problem: str):
+        return self._judge.getPastSubmissions(team_name, problem).to_dict()
 
 
 if __name__ == "__main__":
     sheet = Sheet()
-    judgement = sheet._judge.getJudgement("1b", 0, "969")
+    judgement = sheet._judge.getJudgement("1b", 0, "969", "testteam")
     print(judgement)

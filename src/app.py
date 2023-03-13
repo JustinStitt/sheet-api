@@ -345,11 +345,21 @@ class GetJudgement(Resource):
         args = request.args
         problem = args["problem"]
         input_idx = int(args["input_index"])
+        team_name = args["team_name"]
         if input_idx not in range(0, 100):
             return {"message": "bad input index"}, 403
         output = args["output"]
-        resp = sheet.getJudgement(problem, input_idx, output)
+        resp = sheet.getJudgement(problem, input_idx, output, team_name)
         return {"judgement": str(resp)}, 200
+
+
+class GetPastSubmissions(Resource):
+    def get(self):
+        args = request.args
+        team_name = args["team_name"]
+        problem = args["problem"]
+        resp = sheet.getPastSubmissions(team_name, problem)
+        return {"data": resp}, 200
 
 
 api.add_resource(Home, "/")
@@ -367,6 +377,7 @@ api.add_resource(GetTeamFromToken, "/token_lookup")
 api.add_resource(GetGraphData, "/get_graph")
 api.add_resource(GetInputIndex, "/get_index")
 api.add_resource(GetJudgement, "/get_judgement")
+api.add_resource(GetPastSubmissions, "/get_submissions")
 
 
 if __name__ == "__main__":

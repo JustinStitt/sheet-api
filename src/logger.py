@@ -5,6 +5,7 @@ import inspect
 import pytz
 
 from client import Client
+from gettime import gettime
 
 
 class Logger:
@@ -14,10 +15,6 @@ class Logger:
         self._log = self._client.log
 
     def log(self, **kwargs):
-        pst_time = pytz.utc.localize(datetime.utcnow()).astimezone(
-            pytz.timezone("US/Pacific")
-        )
-
         current_frame = inspect.currentframe()
         assert current_frame is not None
 
@@ -25,8 +22,7 @@ class Logger:
         assert previous_frame is not None
 
         args, _, _, values = inspect.getargvalues(previous_frame)
-        time = str(pst_time)
-        time = time[0 : time.index(".")]
+        time = gettime()
         row = [time, previous_frame.f_code.co_name]
 
         for arg in args:
@@ -37,8 +33,7 @@ class Logger:
         for k, v in kwargs.items():  # any additional args
             row.append(f"{k}={v}")
 
-        self._log.append_table(row, overwrite=True)
+        self._log.append_table(row, overwrite=True)  # type: ignore
 
     def getLog(self):
-        # TODO: add start, end timing args for log slices
-        return self._log.get_as_df()
+        return self._log.get_as_df()  # type: ignore
