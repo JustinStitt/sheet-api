@@ -301,6 +301,23 @@ class Sheet:
                 return to_join
         return None
 
+    def leaveTeam(self, team_name: str, member_name: str):
+        records = self._teams.get_all_records()
+        print(records)
+        for ridx, record in enumerate(records):
+            if record["team_name"] == team_name:
+                # find our name in it
+                k = 0
+                for i in range(0, 40):
+                    k = str(i)
+                    if record[k] == member_name:
+                        break
+                cell = self._teams.cell((ridx + 2, int(k) + 3))
+                # cell.set_value("<vacancy>")
+                cell.set_text_format("strikethrough", True)
+                return True
+        return False
+
 
 if __name__ == "__main__":
     sheet = Sheet()

@@ -373,6 +373,17 @@ class JoinTeam(Resource):
         return hresp
 
 
+class LeaveTeam(Resource):
+    def get(self):
+        args = request.args
+        team_name = args["team_name"]
+        member_name = args["member_name"]
+        resp = sheet.leaveTeam(team_name, member_name)
+        if resp:
+            return {"message": "Team Leave successful"}, 200
+        return {"message": "Team leave failed"}, 403
+
+
 api.add_resource(Home, "/")
 api.add_resource(Login, "/login")
 api.add_resource(Docs, "/docs")
@@ -390,6 +401,7 @@ api.add_resource(GetInputIndex, "/get_index")
 api.add_resource(GetJudgement, "/get_judgement")
 api.add_resource(GetPastSubmissions, "/get_submissions")
 api.add_resource(JoinTeam, "/join_team")
+api.add_resource(LeaveTeam, "/leave_team")
 
 
 if __name__ == "__main__":
