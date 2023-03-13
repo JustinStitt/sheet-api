@@ -304,6 +304,9 @@ class Sheet:
 
     def leaveTeam(self, team_name: str, member_name: str, token: str):
         # do tokens match?
+        if len(team_name) < 1 or len(member_name) < 1 or len(token) < 3:
+            print("Empty args")
+            return False
         if self.getTeamFromToken(token) != team_name:
             print("Cant join team if token doesn't match!")
             return False
