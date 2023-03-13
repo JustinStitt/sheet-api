@@ -101,7 +101,8 @@ class CreateTeam(Resource):
     def get(self):
         args = request.args
         team_name = args["team_name"]
-        resp = sheet.createTeam(team_name)
+        captain_name = args["captain_name"] or "no captain"
+        resp = sheet.createTeam(team_name, captain_name)
         if resp["status"] == 200:
             res = make_response(jsonify(resp), 200)
             res.set_cookie("team", resp["team_name"])
@@ -362,6 +363,15 @@ class GetPastSubmissions(Resource):
         return {"data": resp}, 200
 
 
+class JoinTeam(Resource):
+    def get(self):
+        args = request.args
+        token = args["token"]
+        member_name = args["member_name"]
+        resp = sheet.joinTeam(token, member_name)
+        return {"data": resp}, 200
+
+
 api.add_resource(Home, "/")
 api.add_resource(Login, "/login")
 api.add_resource(Docs, "/docs")
@@ -378,6 +388,7 @@ api.add_resource(GetGraphData, "/get_graph")
 api.add_resource(GetInputIndex, "/get_index")
 api.add_resource(GetJudgement, "/get_judgement")
 api.add_resource(GetPastSubmissions, "/get_submissions")
+api.add_resource(JoinTeam, "/join_team")
 
 
 if __name__ == "__main__":

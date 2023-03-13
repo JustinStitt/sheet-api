@@ -29,6 +29,7 @@ class Sheet:
         self._judge = Judge(self._client.problems, self._client.submissions)
         self._scoreboard = self._client.scoreboard
         self._tokens = self._client.tokens
+        self._teams = self._client.teams
         self.last_scoreboard_fetch_time = time.time()
         self.last_scoreboard_fetch_data: pd.DataFrame | Literal[False] = False
 
@@ -99,8 +100,13 @@ class Sheet:
         return len(leading_col) - 1
 
     @sanitize
-    def createTeam(self, team_name: str):
-        if len(team_name) <= 1 or len(team_name) > 32:
+    def createTeam(self, team_name: str, member_name: str):
+        if (
+            len(team_name) <= 1
+            or len(team_name) > 32
+            or len(member_name) <= 1
+            or len(member_name) > 32
+        ):
             return {
                 "message": "Invalid team name length. Length must be greater than 1 and less than 33",
                 "token": "",
@@ -115,6 +121,7 @@ class Sheet:
             token = self._generateToken(team_name)
             self._scoreboard.insert_cols(idx, values=[team_name, *zero_pad])
             self._tokens.insert_rows(idx, values=[team_name, token])
+            self._teams.insert_rows(idx, values=[team_name, member_name])
             self._logger.log(token=token)
             return {
                 "message": f"Team {team_name} created successfully",
@@ -271,9 +278,34 @@ class Sheet:
     def getPastSubmissions(self, team_name: str, problem: str):
         return self._judge.getPastSubmissions(team_name, problem)
 
+    def joinTeam(self, token: str, member_name: str):
+        records = self._teams.get_all_records()
+        print("records: ", records)
+        to_join = self.getTeamFromToken(token)
+        if to_join is None:
+            print("Team not found with token: ", token)
+            return False
+        for ridx, record in enumerate(records):
+            if record["team_name"] == to_join:
+                # find first empty team slot
+                k = 0
+                for i in range(0, 40):
+                    k = str(i)
+                    if record[k] == "":
+                        break
+                # now k is first open spot
+                # self._teams.update_values(range(ridx, k), [member_name])
+                print("ridx: ", ridx, " k", k)
+                cell = self._teams.cell((ridx + 2, int(k) + 3))
+                cell.set_value(member_name)
+                return True
+        return False
+
 
 if __name__ == "__main__":
     sheet = Sheet()
-    index = sheet.getRandomInputIndexForTeam(100, "teamtwoayo")
-    print("index: ", index)
-    print(sheet.getJudgement("1b", index, "861", "teamtwoayo"))
+    # sheet.createTeam("coolnewteam", "justin")
+    sheet.joinTeam("tendergoat", "kevin")
+    # index = sheet.getRandomInputIndexForTeam(100, "teamtwoayo")
+    # print("index: ", index)
+    # print(sheet.getJudgement("1b", index, "861", "teamtwoayo"))
