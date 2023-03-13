@@ -268,7 +268,7 @@ class Sheet:
         problem_number = problem[
             0
         ]  # HACK: doesn't work for double digit problems like 14c
-        logger.info(
+        logging.info(
             f"christOSS log: {has_prior_solve=}, {judgement=}, {problem_number=}"
         )
         if judgement == True and not has_prior_solve and problem_number in "0123456789":
