@@ -278,6 +278,7 @@ class Sheet:
     def getPastSubmissions(self, team_name: str, problem: str):
         return self._judge.getPastSubmissions(team_name, problem)
 
+    @sanitize
     def joinTeam(self, token: str, member_name: str):
         if len(member_name) < 2:
             return None
@@ -295,9 +296,7 @@ class Sheet:
                     k = str(i)
                     if record[k] == "":
                         break
-                # now k is first open spot
-                # self._teams.update_values(range(ridx, k), [member_name])
-                print("ridx: ", ridx, " k", k)
+
                 cell = self._teams.cell((ridx + 2, int(k) + 3))
                 cell.set_value(member_name)
                 return to_join
