@@ -145,7 +145,9 @@ class Sheet:
         return f'Event: "{event_name}" created', 200
 
     @sanitize
-    def _getEventTeamCell(self, event_name: str, team_name: str) -> str | None:
+    def _getEventTeamCell(
+        self, event_name: str, team_name: str
+    ) -> tuple[int, int] | None:
         try:
             team_cell = self._findTeam(team_name)
             event_cell = self._findEvent(event_name)
@@ -157,7 +159,8 @@ class Sheet:
             )
         else:
             # !! probably breaks when over 26 teams due to 'AA' label
-            return team_cell.label[0] + event_cell.label[1:]
+            # return team_cell.label[0] + event_cell.label[1:]
+            return (event_cell.row, team_cell.col)
 
         return None
 
@@ -187,9 +190,9 @@ class Sheet:
     @sanitize
     def adjustScore(self, event_name: str, team_name: str, score_delta: int):
         assert type(score_delta) is int, "Score Delta must be an integer!"
-        label = self._getEventTeamCell(event_name, team_name)
+        row, col = self._getEventTeamCell(event_name, team_name)
         current_score = self.getScore(team_name, event_name)
-        self._scoreboard.update_value(label, str(current_score + score_delta))
+        self._scoreboard.update_value((row, col), str(current_score + score_delta))
         self._logger.log(old_score=current_score, new_score=current_score + score_delta)
         return "success", 200
 
@@ -329,7 +332,8 @@ class Sheet:
 
 if __name__ == "__main__":
     sheet = Sheet()
-    sheet.getPastSubmissions("acmgang", "1a")
+    # sheet.getPastSubmissions("acmgang", "1a")
+    sheet.adjustScore("woc0", "acmgang", 100)
     # # sheet.createTeam("asdfffasd", "kevin")
     # sheet.joinTeam("boredpheasant", "kevin")
     # # index = sheet.getRandomInputIndexForTeam(100, "teamtwoayo")
