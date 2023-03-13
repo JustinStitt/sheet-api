@@ -302,14 +302,14 @@ class Sheet:
                 return to_join
         return None
 
-    def leaveTeam(self, team_name: str, member_name: str, token: str):
+    def leaveTeam(self, team_name: str, member_name: str):
         # do tokens match?
-        if len(team_name) < 1 or len(member_name) < 1 or len(token) < 3:
+        if len(team_name) < 1 or len(member_name) < 1:
             print("Empty args")
             return False
-        if self.getTeamFromToken(token) != team_name:
-            print("Cant join team if token doesn't match!")
-            return False
+        # if self.getTeamFromToken(token) != team_name:
+        #     print("Cant join team if token doesn't match!")
+        #     return False
         records = self._teams.get_all_records()
         for ridx, record in enumerate(records):
             if record["team_name"] == team_name:
