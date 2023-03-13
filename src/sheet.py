@@ -267,6 +267,9 @@ class Sheet:
         problem_number = problem[
             0
         ]  # HACK: doesn't work for double digit problems like 14c
+        logger.info(
+            f"christOSS log: {has_prior_solve=}, {judgement=}, {problem_number=}"
+        )
         if judgement == True and not has_prior_solve and problem_number in "0123456789":
             event_name = "woc" + str(int(problem_number) - 1)
             try:
@@ -276,6 +279,7 @@ class Sheet:
                 print("PROBLEM DOESNT EXIST in kPOINTS", problem)
                 return False
             print("ADJUSTING SCORE FOR: ", problem, team_name, output)
+            logger.info("ADJUSTING SCORE FOR: ", problem, team_name, output)
             self.adjustScore(event_name, team_name, value)
         return judgement
 
