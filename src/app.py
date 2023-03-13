@@ -369,7 +369,8 @@ class JoinTeam(Resource):
         token = args["token"]
         member_name = args["member_name"]
         resp = sheet.joinTeam(token, member_name)
-        return {"data": resp}, 200
+        hresp = make_response({"team": resp}, 200)
+        return hresp
 
 
 api.add_resource(Home, "/")

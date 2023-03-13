@@ -284,7 +284,7 @@ class Sheet:
         to_join = self.getTeamFromToken(token)
         if to_join is None:
             print("Team not found with token: ", token)
-            return False
+            return None
         for ridx, record in enumerate(records):
             if record["team_name"] == to_join:
                 # find first empty team slot
@@ -298,14 +298,14 @@ class Sheet:
                 print("ridx: ", ridx, " k", k)
                 cell = self._teams.cell((ridx + 2, int(k) + 3))
                 cell.set_value(member_name)
-                return True
-        return False
+                return team_name
+        return None
 
 
 if __name__ == "__main__":
     sheet = Sheet()
-    sheet.createTeam("asdfffasd", "kevin")
-    # sheet.joinTeam("tendergoat", "kevin")
+    # sheet.createTeam("asdfffasd", "kevin")
+    sheet.joinTeam("boredpheasant", "kevin")
     # index = sheet.getRandomInputIndexForTeam(100, "teamtwoayo")
     # print("index: ", index)
     # print(sheet.getJudgement("1b", index, "861", "teamtwoayo"))
