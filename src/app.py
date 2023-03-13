@@ -384,7 +384,8 @@ class LeaveTeam(Resource):
         args = request.args
         team_name = args["team_name"]
         member_name = args["member_name"]
-        resp = sheet.leaveTeam(team_name, member_name)
+        token = args["token"]
+        resp = sheet.leaveTeam(team_name, member_name, token)
         if resp:
             return {"message": "Team Leave successful"}, 200
         return {"message": "Team leave failed"}, 403
