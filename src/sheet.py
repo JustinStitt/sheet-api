@@ -192,6 +192,7 @@ class Sheet:
     def adjustScore(self, event_name: str, team_name: str, score_delta: int):
         assert type(score_delta) is int, "Score Delta must be an integer!"
         row, col = self._getEventTeamCell(event_name, team_name)
+        logging.debug(f"ADJUSTSCORE: {row=},{col=}")
         current_score = self.getScore(team_name, event_name)
         self._scoreboard.update_value((row, col), str(current_score + score_delta))
         self._logger.log(old_score=current_score, new_score=current_score + score_delta)
