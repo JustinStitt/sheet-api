@@ -369,6 +369,11 @@ class JoinTeam(Resource):
         token = args["token"]
         member_name = args["member_name"]
         resp = sheet.joinTeam(token, member_name)
+        if resp is None:
+            return {
+                "team": None,
+                "message": "bad team join, maybe member name empty!",
+            }, 403
         hresp = make_response({"team": resp}, 200)
         return hresp
 

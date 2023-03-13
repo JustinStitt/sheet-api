@@ -279,6 +279,8 @@ class Sheet:
         return self._judge.getPastSubmissions(team_name, problem)
 
     def joinTeam(self, token: str, member_name: str):
+        if len(member_name) < 2:
+            return None
         records = self._teams.get_all_records()
         print("records: ", records)
         to_join = self.getTeamFromToken(token)
