@@ -41,4 +41,13 @@ class Judge:
         return False
 
     def getPastSubmissions(self, team_name: str, problem: str):
-        return self.submissions.get_as_df().to_dict()
+        res = self.submissions.get_as_df().to_dict()
+        out = {"time": {}, "result": {}, "problem": {}}
+        count = 0
+        for i in range(len(res["time"])):
+            if res["team-name"][i] == team_name and res["problem"][i] == problem:
+                out["time"][count] = res["time"][i]
+                out["result"][count] = res["result"][i]
+                out["problem"][count] = res["problem"][i]
+                count += 1
+        return out
