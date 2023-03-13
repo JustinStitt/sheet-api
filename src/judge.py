@@ -25,5 +25,18 @@ class Judge:
         self.submissions.append_table(row, overwrite=True)  # type: ignore
         return result
 
+    def hasPriorSolve(self, team_name: str, problem: str) -> bool:
+        # print(self.getPastSubmissions(team_name, problem))
+        records = self.submissions.get_all_records()
+        for record in records:
+            if (
+                record["team-name"] == team_name
+                and record["problem"] == problem
+                and record["result"] == "TRUE"
+            ):
+                return True
+
+        return False
+
     def getPastSubmissions(self, team_name: str, problem: str):
-        return self.submissions.get_as_df()
+        return self.submissions.get_as_df().to_dict()

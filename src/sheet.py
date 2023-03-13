@@ -259,16 +259,24 @@ class Sheet:
             ]  # HACK: doesn't work for double digit problems like 14c
             if problem_number in "0123456789":
                 event_name = "woc" + str(int(problem_number) - 1)
-                delta = int(kPOINTS[problem]) - self.getScore(team_name, event_name)
-                if delta != 0:
-                    self.adjustScore(event_name, team_name, int(delta))
+                has_prior_solve = self._judge.hasPriorSolve(team_name, problem)
+                if has_prior_solve == False:
+                    try:
+                        value = int(kPOINTS[problem])
+                    except:
+                        print("PROBLEM DOESNT EXIST in kPOINTS", problem)
+                        return False
+                    self.adjustScore(event_name, team_name, value)
         return judgement
 
     def getPastSubmissions(self, team_name: str, problem: str):
-        return self._judge.getPastSubmissions(team_name, problem).to_dict()
+        return self._judge.getPastSubmissions(team_name, problem)
 
 
 if __name__ == "__main__":
     sheet = Sheet()
-    # judgement = sheet._judge.getJudgement("1b", 0, "969", "testteam")
-    # print(judgement)
+    print(sheet._judge.hasPriorSolve("teamtwoayo", "1a"))
+    judgement = sheet._judge.getJudgement(
+        "1a", sheet.getRandomInputIndexForTeam(100, "teamtwoayo"), "864", "teamtwoayo"
+    )
+    print(judgement)
