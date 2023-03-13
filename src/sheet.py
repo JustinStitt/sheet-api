@@ -4,6 +4,7 @@ from os import getenv
 from typing import Literal
 from hashlib import sha1
 import time
+import re
 
 from dotenv import load_dotenv
 import pandas as pd
@@ -16,6 +17,7 @@ from graph import Graph
 from sanitize import sanitize
 
 load_dotenv()
+kPOINTS = json.loads(getenv("POINTS"))  # type: ignore
 
 
 class Sheet:
@@ -250,7 +252,16 @@ class Sheet:
     def getJudgement(
         self, problem: str, input_idx: int, output: str, team_name: str
     ) -> bool:
-        return self._judge.getJudgement(problem, input_idx, output, team_name)
+        judgement = self._judge.getJudgement(problem, input_idx, output, team_name)
+        if judgement == True:
+            problem_number = problem[
+                0
+            ]  # HACK: doesn't work for double digit problems like 14c
+            if problem_number in "0123456789":
+                event_name = "code" + str(int(problem_number) - 1)
+                delta = kPOINTS["problem"] - self.getScore(team_name, event_name)
+                self.adjustScore(event_name, team_name, delta)
+        return judgement
 
     def getPastSubmissions(self, team_name: str, problem: str):
         return self._judge.getPastSubmissions(team_name, problem).to_dict()
@@ -258,5 +269,5 @@ class Sheet:
 
 if __name__ == "__main__":
     sheet = Sheet()
-    judgement = sheet._judge.getJudgement("1b", 0, "969", "testteam")
-    print(judgement)
+    # judgement = sheet._judge.getJudgement("1b", 0, "969", "testteam")
+    # print(judgement)
