@@ -31,9 +31,9 @@ class Judge:
         records = self.submissions.get_all_records()
         for record in records:
             if (
-                get(record["team-name"], None) == team_name
-                and get(record["problem"], None) == problem
-                and get(record["result"], None) == "TRUE"
+                record.get("team-name", None) == team_name
+                and record.get("problem", None) == problem
+                and record.get("result", None) == "TRUE"
             ):
                 print("hit: ", record)
                 return True
