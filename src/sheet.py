@@ -247,6 +247,9 @@ class Sheet:
         team_hash = sha1(team_name.encode()).hexdigest()
         return int(team_hash, 16) % num_inputs
 
+    def getJudgement(self, problem: str, input_idx: int, output: str) -> bool:
+        return self._judge.getJudgement(problem, input_idx, output)
+
 
 if __name__ == "__main__":
     sheet = Sheet()
