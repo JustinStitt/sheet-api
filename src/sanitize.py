@@ -7,7 +7,7 @@ def sanitize(func):
         for arg in args:
             if type(arg) is str and "woc" not in arg and "<" not in arg:
                 arg = re.sub(r"[^a-zA-Z]", "", arg).lower()
-            if "<" not in arg:
+            if type(arg) is str and "<" not in arg:
                 sanitized_args.append(arg)
         return func(*sanitized_args, **kwargs)
 
