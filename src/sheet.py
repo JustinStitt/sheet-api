@@ -259,7 +259,7 @@ class Sheet:
             ]  # HACK: doesn't work for double digit problems like 14c
             if problem_number in "0123456789":
                 event_name = "code" + str(int(problem_number) - 1)
-                delta = kPOINTS["problem"] - self.getScore(team_name, event_name)
+                delta = kPOINTS[problem] - self.getScore(team_name, event_name)
                 self.adjustScore(event_name, team_name, delta)
         return judgement
 
