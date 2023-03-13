@@ -26,14 +26,14 @@ class Judge:
         return result
 
     def hasPriorSolve(self, team_name: str, problem: str) -> bool:
-        print(f"{team_name=}, {problem=}")
+        print(f"CHECKING PRIOR SOLVE {team_name=}, {problem=}")
         # print(self.getPastSubmissions(team_name, problem))
         records = self.submissions.get_all_records()
         for record in records:
             if (
-                record["team-name"] == team_name
-                and record["problem"] == problem
-                and record["result"] == "TRUE"
+                get(record["team-name"], None) == team_name
+                and get(record["problem"], None) == problem
+                and get(record["result"], None) == "TRUE"
             ):
                 print("hit: ", record)
                 return True
