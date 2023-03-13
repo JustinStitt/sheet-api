@@ -281,7 +281,7 @@ class Sheet:
                 print("PROBLEM DOESNT EXIST in kPOINTS", problem)
                 return False
             print("ADJUSTING SCORE FOR: ", problem, team_name, output)
-            logger.info("ADJUSTING SCORE FOR: ", problem, team_name, output)
+            logging.info(f"ADJUSTING SCORE: {problem=}, {team_name=}, {output=}")
             self.adjustScore(event_name, team_name, value)
         return judgement
 
