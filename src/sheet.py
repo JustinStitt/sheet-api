@@ -245,7 +245,7 @@ class Sheet:
     def getRandomInputIndexForTeam(self, num_inputs: int, team_name: str) -> int:
         """hash team name and return index from [0, 99]"""
         team_hash = sha1(team_name.encode()).hexdigest()
-        return int(team_hash) % num_inputs
+        return int(team_hash, 16) % num_inputs
 
 
 if __name__ == "__main__":
