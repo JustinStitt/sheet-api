@@ -298,7 +298,7 @@ class Sheet:
                 print("ridx: ", ridx, " k", k)
                 cell = self._teams.cell((ridx + 2, int(k) + 3))
                 cell.set_value(member_name)
-                return team_name
+                return to_join
         return None
 
 
