@@ -4,6 +4,7 @@ from os import getenv
 from typing import Literal
 from hashlib import sha1
 import time
+import logger
 import re
 
 from dotenv import load_dotenv
