@@ -350,7 +350,7 @@ class GetJudgement(Resource):
         input_idx = sheet.getRandomInputIndexForTeam(100, team_name)
         if input_idx not in range(0, 100):
             return {"judgement": "False", "message": "bad input index"}, 403
-        output = args["output"]
+        output = args["output"].strip()
         resp = sheet.getJudgement(problem, input_idx, output, team_name)
         return {"judgement": str(resp)}, 200
 
