@@ -252,21 +252,20 @@ class Sheet:
     def getJudgement(
         self, problem: str, input_idx: int, output: str, team_name: str
     ) -> bool:
+        has_prior_solve = self._judge.hasPriorSolve(team_name, problem)
         judgement = self._judge.getJudgement(problem, input_idx, output, team_name)
-        if judgement == True:
-            problem_number = problem[
-                0
-            ]  # HACK: doesn't work for double digit problems like 14c
-            if problem_number in "0123456789":
-                event_name = "woc" + str(int(problem_number) - 1)
-                has_prior_solve = self._judge.hasPriorSolve(team_name, problem)
-                if has_prior_solve == False:
-                    try:
-                        value = int(kPOINTS[problem])
-                    except:
-                        print("PROBLEM DOESNT EXIST in kPOINTS", problem)
-                        return False
-                    self.adjustScore(event_name, team_name, value)
+        problem_number = problem[
+            0
+        ]  # HACK: doesn't work for double digit problems like 14c
+        if judgement == True and not has_prior_solve and problem_number in "0123456789":
+            event_name = "woc" + str(int(problem_number) - 1)
+            try:
+                value = int(kPOINTS[problem])
+                print(f"{value=}")
+            except:
+                print("PROBLEM DOESNT EXIST in kPOINTS", problem)
+                return False
+            self.adjustScore(event_name, team_name, value)
         return judgement
 
     def getPastSubmissions(self, team_name: str, problem: str):
@@ -275,8 +274,6 @@ class Sheet:
 
 if __name__ == "__main__":
     sheet = Sheet()
-    print(sheet._judge.hasPriorSolve("teamtwoayo", "1a"))
-    judgement = sheet._judge.getJudgement(
-        "1a", sheet.getRandomInputIndexForTeam(100, "teamtwoayo"), "864", "teamtwoayo"
-    )
-    print(judgement)
+    index = sheet.getRandomInputIndexForTeam(100, "teamtwoayo")
+    print("index: ", index)
+    print(sheet.getJudgement("1b", index, "861", "teamtwoayo"))
