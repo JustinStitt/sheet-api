@@ -225,6 +225,14 @@ class Sheet:
         }
         return token_to_teams
 
+    @sanitize
+    def getTokenFromTeam(self, team_name: str):
+        tokens_to_teams = self._getTokensToTeams()
+        for token, team in tokens_to_teams.items():
+            if team == team_name:
+                return token
+        return ''
+
     @sanitize  # HACK: probably don't need to sanitize here
     def _generateToken(self, team_name: str):
         """
@@ -343,6 +351,7 @@ class Sheet:
 
 if __name__ == "__main__":
     sheet = Sheet()
+    print(sheet.getTokenFromTeam('acmgang'))
     # print(sheet.getPastSubmissions("acmgang", "1a")
     # sheet.adjustScore("woc0", "acmgang", 100)
     # print(sheet.getRandomInputIndexForTeam(100, "mtndew"))

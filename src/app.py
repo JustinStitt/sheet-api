@@ -389,6 +389,14 @@ class LeaveTeam(Resource):
             return {"message": "Team Leave successful"}, 200
         return {"message": "Team leave failed"}, 403
 
+class GetToken(Resource):
+    def get(self):
+        args = request.args
+        team_name = args['team_name']
+        if not team_name or len(team_name) < 1:
+            return {"message": "bad team"}, 403
+        resp = sheet.getTokenFromTeam(team_name)
+        return {"token": resp}, 200
 
 api.add_resource(Home, "/")
 api.add_resource(Login, "/login")
@@ -408,6 +416,7 @@ api.add_resource(GetJudgement, "/get_judgement")
 api.add_resource(GetPastSubmissions, "/get_submissions")
 api.add_resource(JoinTeam, "/join_team")
 api.add_resource(LeaveTeam, "/leave_team")
+api.add_resource(GetToken, '/get_token')
 
 
 if __name__ == "__main__":
