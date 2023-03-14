@@ -288,7 +288,8 @@ class Sheet:
             except:
                 logging.error("COULDNT ADJUST SCORE FOR")
                 return False  # couldn't adjust score for some reason
-        return judgement
+            return True
+        return False
 
     def getPastSubmissions(self, team_name: str, problem: str):
         return self._judge.getPastSubmissions(team_name, problem)
