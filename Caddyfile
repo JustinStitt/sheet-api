@@ -16,6 +16,10 @@ api.jstitt.dev {
 	respond "Work in progress... Come back later."
 }
 
+tatorsor.com {
+  reverse_proxy 127.0.0.1:5002
+}
+
 # www.jstitt.dev {
   # redir https://api.jstitt.dev{uri}
 # }
