@@ -203,7 +203,7 @@ class Sheet:
         self._logger.log(
             old_score=current_score,
             new_score=current_score + score_delta,
-            total_score=self.getTotal(team_name),
+            total_score=self.getTotal(team_name) + score_delta,
         )
         return "success", 200
 
