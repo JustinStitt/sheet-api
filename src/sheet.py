@@ -278,7 +278,7 @@ class Sheet:
                 value = int(kPOINTS[problem])
                 print(f"{value=}")
             except:
-                print("PROBLEM DOESNT EXIST in kPOINTS", problem)
+                logging.debug(f"PROBLEM DOESNT EXIST in kPOINTS {problem=}")
                 return False
             print("ADJUSTING SCORE FOR: ", problem, team_name, output)
             logging.info(f"ADJUSTING SCORE: {problem=}, {team_name=}, {output=}")
@@ -339,7 +339,8 @@ class Sheet:
 if __name__ == "__main__":
     sheet = Sheet()
     # sheet.getPastSubmissions("acmgang", "1a")
-    sheet.adjustScore("woc0", "acmgang", 100)
+    # sheet.adjustScore("woc0", "acmgang", 100)
+    print(sheet.getRandomInputIndexForTeam(100, "mtndew"))
     # # sheet.createTeam("asdfffasd", "kevin")
     # sheet.joinTeam("boredpheasant", "kevin")
     # # index = sheet.getRandomInputIndexForTeam(100, "teamtwoayo")
