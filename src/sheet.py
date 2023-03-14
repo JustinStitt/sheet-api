@@ -102,6 +102,7 @@ class Sheet:
 
     @sanitize
     def createTeam(self, team_name: str, member_name: str):
+        team_name = re.sub(r"[^a-zA-Z]", "", team_name).lower()
         if (
             len(team_name) <= 1
             or len(team_name) > 32
