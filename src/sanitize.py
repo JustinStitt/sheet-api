@@ -5,6 +5,8 @@ def sanitize(func):
     def wrapper(*args, **kwargs):
         sanitized_args = []
         for arg in args:
+            is_woc = re.findall(r'woc\d', arg)[0]
+            if is_woc is None:
             if type(arg) is str and "woc" not in arg and "<" not in arg:
                 arg = re.sub(r"[^a-zA-Z]", "", arg).lower()
             # if type(arg) is str and "<" not in arg:

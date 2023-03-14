@@ -26,6 +26,7 @@ class Judge:
         return result
 
     def hasPriorSolve(self, team_name: str, problem: str) -> bool:
+        team_name = re.sub(r"[^a-zA-Z]", "", team_name).lower()
         print(f"CHECKING PRIOR SOLVE {team_name=}, {problem=}")
         # print(self.getPastSubmissions(team_name, problem))
         records = self.submissions.get_all_records()
