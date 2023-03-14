@@ -175,6 +175,11 @@ class Sheet:
         return sb[team_name], event_to_idx
 
     @sanitize
+    def getTotal(self, team_name: str) -> int:
+        row = self.getScores(team_name)
+        return(sum(row[0]))
+
+    @sanitize
     def getScore(self, team_name: str, event_name: str) -> int:
         team_col, event_to_idx = self.getScores(team_name)
         score_idx = event_to_idx[event_name]
@@ -195,7 +200,7 @@ class Sheet:
         logging.debug(f"ADJUSTSCORE: {row=},{col=}")
         current_score = self.getScore(team_name, event_name)
         self._scoreboard.update_value((row, col), str(current_score + score_delta))
-        self._logger.log(old_score=current_score, new_score=current_score + score_delta)
+        self._logger.log(old_score=current_score, new_score=current_score + score_delta, total_score=self.getTotal(team_name))
         return "success", 200
 
     @sanitize
@@ -231,7 +236,7 @@ class Sheet:
         for token, team in tokens_to_teams.items():
             if team == team_name:
                 return token
-        return ''
+        return ""
 
     @sanitize  # HACK: probably don't need to sanitize here
     def _generateToken(self, team_name: str):
@@ -351,7 +356,8 @@ class Sheet:
 
 if __name__ == "__main__":
     sheet = Sheet()
-    print(sheet.getTokenFromTeam('acmgang'))
+    print(sheet.getTotal('sin'))
+    # sheet.getGraph()
     # print(sheet.getPastSubmissions("acmgang", "1a")
     # sheet.adjustScore("woc0", "acmgang", 100)
     # print(sheet.getRandomInputIndexForTeam(100, "mtndew"))
