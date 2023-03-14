@@ -275,6 +275,7 @@ class Sheet:
         if judgement == True and not has_prior_solve and problem_number in "0123456789":
             event_name = "woc" + str(int(problem_number) - 1)
             try:
+                logging.debug(f"TRYING KPOINTS {problem}")
                 value = int(kPOINTS[problem])
                 print(f"{value=}")
             except:
@@ -282,7 +283,11 @@ class Sheet:
                 return False
             print("ADJUSTING SCORE FOR: ", problem, team_name, output)
             logging.info(f"ADJUSTING SCORE: {problem=}, {team_name=}, {output=}")
-            self.adjustScore(event_name, team_name, value)
+            try:
+                self.adjustScore(event_name, team_name, value)
+            except:
+                logging.error("COULDNT ADJUST SCORE FOR")
+                return False  # couldn't adjust score for some reason
         return judgement
 
     def getPastSubmissions(self, team_name: str, problem: str):
