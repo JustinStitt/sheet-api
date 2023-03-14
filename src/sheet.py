@@ -177,7 +177,7 @@ class Sheet:
     @sanitize
     def getTotal(self, team_name: str) -> int:
         row = self.getScores(team_name)
-        return(sum(row[0]))
+        return sum(row[0])
 
     @sanitize
     def getScore(self, team_name: str, event_name: str) -> int:
@@ -200,7 +200,11 @@ class Sheet:
         logging.debug(f"ADJUSTSCORE: {row=},{col=}")
         current_score = self.getScore(team_name, event_name)
         self._scoreboard.update_value((row, col), str(current_score + score_delta))
-        self._logger.log(old_score=current_score, new_score=current_score + score_delta, total_score=self.getTotal(team_name))
+        self._logger.log(
+            old_score=current_score,
+            new_score=current_score + score_delta,
+            total_score=self.getTotal(team_name),
+        )
         return "success", 200
 
     @sanitize
@@ -356,7 +360,8 @@ class Sheet:
 
 if __name__ == "__main__":
     sheet = Sheet()
-    print(sheet.getTotal('sin'))
+    # print(sheet.getTotal('sin'))
+    print(sheet.getGraph())
     # sheet.getGraph()
     # print(sheet.getPastSubmissions("acmgang", "1a")
     # sheet.adjustScore("woc0", "acmgang", 100)

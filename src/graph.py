@@ -24,9 +24,9 @@ class Graph:
         assert len(times) == len(
             actions
         ), "mismatched lengths for times, actions. can't construct graph"
-        args = [self.data[k] for k in "CDEFG"]
+        args = [self.data[k] for k in "CDEFGH"]
         for arg in args:
-            print(arg,'\n')
+            print(arg, "\n")
 
         xs = defaultdict(lambda: list())
         ys = defaultdict(lambda: list())
@@ -38,10 +38,9 @@ class Graph:
             team = self._cleanArg(args[1][idx])
             score_delta = self._cleanArg(args[4][idx])
             total_score = None
-            if len(args) >= 6:
+            if len(args) >= 6 and args[5][idx] != "":
                 # use total_score
                 total_score = self._cleanArg(args[5][idx])
-
 
             # need total sum
             xs[team].append(_time)
