@@ -397,7 +397,7 @@ class GetToken(Resource):
         if not team_name or len(team_name) < 1:
             return {"message": "bad team"}, 403
         resp = sheet.getTokenFromTeam(team_name)
-        return make_response({"token": resp}), 200
+        return {"token": resp}, 200
 
 
 api.add_resource(Home, "/")
