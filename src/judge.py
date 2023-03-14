@@ -12,6 +12,7 @@ class Judge:
     def getJudgement(
         self, problem: str, input_idx: int, output: str, team_name: str
     ) -> bool:
+        team_name = re.sub(r"[^a-zA-Z]", "", team_name).lower()
         # problem is of form "1a" or "1b" or "4a"
         problem_number = int(re.findall(r"\d+", problem)[0])
         problem_part = re.findall(r"[a-z]{1}", problem)[0]

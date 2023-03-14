@@ -343,9 +343,9 @@ class Sheet:
 
 if __name__ == "__main__":
     sheet = Sheet()
-    # sheet.getPastSubmissions("acmgang", "1a")
+    # print(sheet.getPastSubmissions("acmgang", "1a")
     # sheet.adjustScore("woc0", "acmgang", 100)
-    print(sheet.getRandomInputIndexForTeam(100, "mtndew"))
+    # print(sheet.getRandomInputIndexForTeam(100, "mtndew"))
     # # sheet.createTeam("asdfffasd", "kevin")
     # sheet.joinTeam("boredpheasant", "kevin")
     # # index = sheet.getRandomInputIndexForTeam(100, "teamtwoayo")
