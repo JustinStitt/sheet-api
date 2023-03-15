@@ -198,6 +198,7 @@ class Sheet:
 
     @sanitize
     def adjustScore(self, event_name: str, team_name: str, score_delta: int):
+        print("ADJUSTING SCORE")
         assert type(score_delta) is int, "Score Delta must be an integer!"
         row, col = self._getEventTeamCell(event_name, team_name)
         logging.debug(f"ADJUSTSCORE: {row=},{col=}")
@@ -364,15 +365,11 @@ class Sheet:
         self, category: str, problem_idx: int, flag: str, team_name: str
     ) -> bool:
         team_name = re.sub(r"[^a-zA-Z]", "", team_name).lower()
-        result = self._ctf.isFlagCorrect(
-            category, problem_idx, flag, team_name
-        )  # TODO: handle points
-        if not result:  # don't check prior solves if this submission isn't correct
-            return False
-
         has_prior_solve = self._judge.hasPriorSolve(
             team_name, f"{category}-{problem_idx}"
         )
+
+        result = self._ctf.isFlagCorrect(category, problem_idx, flag, team_name)
 
         if result and not has_prior_solve:
             base_score = getenv("CTF_BASE_SCORE")
@@ -393,7 +390,8 @@ class Sheet:
 if __name__ == "__main__":
     sheet = Sheet()
     # print(sheet.getTotal('sin'))
-    print(sheet.getGraph())
+    # print(sheet.isFlagCorrect("osint", 2, "flag{more_stuff}", "acmgang"))
+    # print(sheet.getGraph())
     # sheet.getGraph()
     # print(sheet.getPastSubmissions("acmgang", "1a")
     # sheet.adjustScore("woc0", "acmgang", 100)
