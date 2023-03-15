@@ -43,3 +43,20 @@ class CTF:
         row = [gettime(), team_name, problem, str(result), str(0), flag]
         self.submissions.append_table(row, overwrite=True)  # type: ignore
         return result
+
+    def getSolvedFlags(self, team_name: str, category: str):
+        # iterate through submissions
+        solved_idxs = []
+        records = self.submissions.get_all_records()
+        for record in records:
+            team = record["team-name"]
+            problem = record["problem"]
+            result = record["result"]
+            if category not in problem or "-" not in problem:
+                continue  # not the right problem! (ctf category)
+            num = int(problem[problem.index("-") + 1 :])
+
+            if team == team_name and result == "TRUE":
+                solved_idxs.append(num)
+
+        return solved_idxs

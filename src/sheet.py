@@ -386,9 +386,25 @@ class Sheet:
 
         return result
 
+    @sanitize
+    def getSolvedFlags(self, category: str, team_name: str):
+        team_name = re.sub(
+            r"[^a-zA-Z]", "", team_name
+        ).lower()  # better to over-sanitize!
+
+        prior_solves = self._ctf.getSolvedFlags(team_name, category)
+        # check all problems to see if has valid solve
+        # for i in range(20):  # assume no more than 99 problems in a category
+        #     has_solve = self._judge.hasPriorSolve(team_name, f"{category}-{i}")
+        #     if has_solve:
+        #         prior_solves.append(i)
+
+        return prior_solves
+
 
 if __name__ == "__main__":
     sheet = Sheet()
+    print(sheet.getSolvedFlags("rev", "acmgang"))
     # print(sheet.getTotal('sin'))
     # print(sheet.isFlagCorrect("osint", 2, "flag{more_stuff}", "acmgang"))
     # print(sheet.getGraph())

@@ -418,6 +418,16 @@ class CheckFlag(Resource):
         return {"message": "correct"}, 200
 
 
+class CheckSolvedFlags(Resource):
+    def get(self):
+        args = request.args
+        category = args["category"]
+        team_name = args["team_name"]
+        resp = sheet.getSolvedFlags(category, team_name)
+
+        return {"data": resp}, 200
+
+
 api.add_resource(Home, "/")
 api.add_resource(Login, "/login")
 api.add_resource(Docs, "/docs")
@@ -438,6 +448,7 @@ api.add_resource(JoinTeam, "/join_team")
 api.add_resource(LeaveTeam, "/leave_team")
 api.add_resource(GetToken, "/get_token")
 api.add_resource(CheckFlag, "/check_flag")
+api.add_resource(CheckSolvedFlags, "/check_solved_flags")
 
 
 if __name__ == "__main__":
