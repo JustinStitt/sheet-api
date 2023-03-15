@@ -29,7 +29,7 @@ class Sheet:
         self._client = Client()
         self._logger = Logger(self._client)
         self._judge = Judge(self._client.problems, self._client.submissions)
-        self._ctf = CTF(self._client.ctf)
+        self._ctf = CTF(self._client.ctf, self._client.submissions)
         self._scoreboard = self._client.scoreboard
         self._tokens = self._client.tokens
         self._teams = self._client.teams
@@ -360,10 +360,34 @@ class Sheet:
                 return True
         return False
 
-    def isFlagCorrect(self, category: str, problem_idx: int, flag: str) -> bool:
-        return self._ctf.isFlagCorrect(
-            category, problem_idx, flag
+    def isFlagCorrect(
+        self, category: str, problem_idx: int, flag: str, team_name: str
+    ) -> bool:
+        team_name = re.sub(r"[^a-zA-Z]", "", team_name).lower()
+        result = self._ctf.isFlagCorrect(
+            category, problem_idx, flag, team_name
         )  # TODO: handle points
+        if not result:  # don't check prior solves if this submission isn't correct
+            return False
+
+        has_prior_solve = self._judge.hasPriorSolve(
+            team_name, f"{category}-{problem_idx}"
+        )
+
+        if result and not has_prior_solve:
+            base_score = getenv("CTF_BASE_SCORE")
+            use_coeff = getenv(
+                "CTF_USE_COEFF"
+            )  # should we multiply scores by (problem_idx + 1) ?
+            if base_score is None or use_coeff is None:
+                logging.error(
+                    f"Couldn't find CTF_BASE_SCORE env variable (or perhaps, CTF_USE_COEFF env variable)"
+                )
+                return result  # still pass judgement
+            coeff = int(problem_idx + 1) if use_coeff == "True" else 1
+            self.adjustScore("ctf", team_name, int(base_score) * coeff)
+
+        return result
 
 
 if __name__ == "__main__":

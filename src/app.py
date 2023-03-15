@@ -404,13 +404,14 @@ class CheckFlag(Resource):
     def get(self):
         args = request.args
         category = args["category"]
+        team_name = args["team_name"]
         try:
             problem_idx = int(args["problem_idx"])
         except:
             return {"message": f"bad argument {problem_idx=}"}, 403
 
         flag = args["flag"]
-        resp = sheet.isFlagCorrect(category, problem_idx, flag)
+        resp = sheet.isFlagCorrect(category, problem_idx, flag, team_name)
         if resp is False:
             return {"message": "incorrect"}, 200
 
