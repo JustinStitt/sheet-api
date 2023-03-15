@@ -10,7 +10,7 @@ class CTF:
         "web": 0,
         "rev": 1,
         "forensics": 2,
-        "osint": 3,
+        "networking": 3,
         "crypto": 4,
         "linux": 5,
     }  # WARNING: use same lookup table for hasPriorSolve-equiv
