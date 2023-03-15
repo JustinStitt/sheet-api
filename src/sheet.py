@@ -361,7 +361,9 @@ class Sheet:
         return False
 
     def isFlagCorrect(self, category: str, problem_idx: int, flag: str) -> bool:
-        return self._ctf.isFlagCorrect(category, problem_idx, flag)
+        return self._ctf.isFlagCorrect(
+            category, problem_idx, flag
+        )  # TODO: handle points
 
 
 if __name__ == "__main__":
