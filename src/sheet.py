@@ -16,6 +16,7 @@ from logger import Logger
 from judge import Judge
 from graph import Graph
 from sanitize import sanitize
+from ctf import CTF
 
 load_dotenv()
 kPOINTS = json.loads(getenv("POINTS"))  # type: ignore
@@ -28,6 +29,7 @@ class Sheet:
         self._client = Client()
         self._logger = Logger(self._client)
         self._judge = Judge(self._client.problems, self._client.submissions)
+        self._ctf = CTF(self._client.ctf)
         self._scoreboard = self._client.scoreboard
         self._tokens = self._client.tokens
         self._teams = self._client.teams
@@ -357,6 +359,9 @@ class Sheet:
                 cell.set_text_format("strikethrough", True)
                 return True
         return False
+
+    def isFlagCorrect(self, category: str, problem_idx: int, flag: str) -> bool:
+        return self._ctf.isFlagCorrect(category, problem_idx, flag)
 
 
 if __name__ == "__main__":

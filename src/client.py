@@ -19,6 +19,7 @@ class Client:
             ],
             "submissions": self.sheet.worksheet_by_title("submissions"),
             "teams": self.sheet.worksheet_by_title("teams"),
+            "ctf": self.sheet.worksheet_by_title("ctf"),
         }
         self.scoreboard: ps.Worksheet | list[ps.Worksheet] = self.sheets["scoreboard"]
         self.tokens: ps.Worksheet | list[ps.Worksheet] = self.sheets["tokens"]
@@ -26,3 +27,4 @@ class Client:
         self.problems: ps.Worksheet | list[ps.Worksheet] = self.sheets["problems"]
         self.submissions: ps.Worksheet | list[ps.Worksheet] = self.sheets["submissions"]
         self.teams: ps.Worksheet | list[ps.Worksheet] = self.sheets["teams"]
+        self.ctf: ps.Worksheet | list[ps.Worksheet] = self.sheets["ctf"]

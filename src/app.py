@@ -400,6 +400,23 @@ class GetToken(Resource):
         return {"token": resp}, 200
 
 
+class CheckFlag(Resource):
+    def get(self):
+        args = request.args
+        category = args["category"]
+        try:
+            problem_idx = int(args["problem_idx"])
+        except:
+            return {"message": f"bad argument {problem_idx=}"}, 403
+
+        flag = args["flag"]
+        resp = sheet.isFlagCorrect(category, problem_idx, flag)
+        if resp is False:
+            return {"message": "incorrect"}, 200
+
+        return {"message": "correct"}, 200
+
+
 api.add_resource(Home, "/")
 api.add_resource(Login, "/login")
 api.add_resource(Docs, "/docs")
@@ -419,6 +436,7 @@ api.add_resource(GetPastSubmissions, "/get_submissions")
 api.add_resource(JoinTeam, "/join_team")
 api.add_resource(LeaveTeam, "/leave_team")
 api.add_resource(GetToken, "/get_token")
+api.add_resource(CheckFlag, "/check_flag")
 
 
 if __name__ == "__main__":
