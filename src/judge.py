@@ -47,6 +47,7 @@ class Judge:
         out = {"time": {}, "result": {}, "problem": {}}
         count = 0
         for i in range(len(res["time"])):
+            print(res["team-name"][i], team_name, problem)
             if res["team-name"][i] == team_name and res["problem"][i] == problem:
                 out["time"][count] = res["time"][i]
                 out["result"][count] = res["result"][i]

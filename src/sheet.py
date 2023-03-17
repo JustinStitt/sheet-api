@@ -33,6 +33,7 @@ class Sheet:
         self._scoreboard = self._client.scoreboard
         self._tokens = self._client.tokens
         self._teams = self._client.teams
+        self._submissions = self._client.submissions
         self.last_scoreboard_fetch_time = time.time()
         self.last_scoreboard_fetch_data: pd.DataFrame | Literal[False] = False
 
@@ -282,6 +283,32 @@ class Sheet:
         team_hash = sha1(team_name.encode()).hexdigest()
         return int(team_hash, 16) % num_inputs
 
+    @sanitize
+    def awardWOCBonus(self, team_name: str) -> bool:
+        solved = set()
+        pattern = r'\d[abc]'
+        records = self._submissions.get_all_records()
+        awarded_already = False
+        for record in records:
+            if (
+                    record.get('team-name') == team_name and
+                    record.get('result', '') == "TRUE" and
+                    len(re.findall(pattern, record.get('problem', '')))
+                    ):
+                solved.add(record['problem'][0])
+            if record.get('problem', '') == 'woc-bonus':
+                awarded_already = True
+                return False
+
+        # log the bonus
+        meets_criteria = len(solved) == 5
+        if meets_criteria and not awarded_already:
+            row = [gettime(), team_name, 'woc-bonus', 'TRUE', str(0), 'Bonus For Completing At Least One Part For Each Day of WoC']
+            self._submissions.append_table(row, overwrite=True)  # type: ignore
+            return True
+
+        return False
+
     def getJudgement(
         self, problem: str, input_idx: int, output: str, team_name: str
     ) -> bool:
@@ -306,6 +333,8 @@ class Sheet:
             logging.info(f"ADJUSTING SCORE: {problem=}, {team_name=}, {output=}")
             try:
                 self.adjustScore(event_name, team_name, value)
+                result = self.awardWOCBonus(team_name)
+                logging.info(f'AWARDING WOC BONUS FOR {team_name=} bonus-{result=}')
             except:
                 logging.error("COULDNT ADJUST SCORE FOR")
                 return False  # couldn't adjust score for some reason
@@ -404,7 +433,9 @@ class Sheet:
 
 if __name__ == "__main__":
     sheet = Sheet()
-    print(sheet.getSolvedFlags("rev", "acmgang"))
+    # print(sheet.getSolvedFlags("rev", "acmgang"))
+    sheet.awardWOCBonus("sin")
+    # sheet.adjustScore("woc3", "sin", 1)
     # print(sheet.getTotal('sin'))
     # print(sheet.isFlagCorrect("osint", 2, "flag{more_stuff}", "acmgang"))
     # print(sheet.getGraph())
