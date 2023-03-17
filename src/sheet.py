@@ -1,21 +1,23 @@
 from hashlib import new
-import json
-from os import getenv
-from typing import Literal
 from hashlib import sha1
-import time
+import json
 import logging
+from os import getenv
 import re
+import time
+from typing import Literal
 
 from dotenv import load_dotenv
 import pandas as pd
 import pygsheets as ps
 
 from client import Client
-from logger import Logger
-from judge import Judge
+from ctf import CTF
 from graph import Graph
+from judge import Judge
+from logger import Logger
 from sanitize import sanitize
+from gettime import gettime
 from ctf import CTF
 
 load_dotenv()
@@ -305,6 +307,8 @@ class Sheet:
         if meets_criteria and not awarded_already:
             row = [gettime(), team_name, 'woc-bonus', 'TRUE', str(0), 'Bonus For Completing At Least One Part For Each Day of WoC']
             self._submissions.append_table(row, overwrite=True)  # type: ignore
+            # award points
+            self.adjustScore('woc4', team_name, 1337)
             return True
 
         return False
@@ -434,7 +438,7 @@ class Sheet:
 if __name__ == "__main__":
     sheet = Sheet()
     # print(sheet.getSolvedFlags("rev", "acmgang"))
-    sheet.awardWOCBonus("sin")
+    print(sheet.awardWOCBonus("acmgang"))
     # sheet.adjustScore("woc3", "sin", 1)
     # print(sheet.getTotal('sin'))
     # print(sheet.isFlagCorrect("osint", 2, "flag{more_stuff}", "acmgang"))
