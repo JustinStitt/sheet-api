@@ -22,6 +22,7 @@ class Judge:
         relevant_col = relevant_sheet.get_col(cidx, include_tailing_empty=False)
         correct_output = relevant_col[input_idx + 1]
         result = correct_output == output
+        output = re.sub(r"[^a-zA-Z{}_0-9]", "", output)
         row = [gettime(), team_name, problem, str(result), str(input_idx), output]
         self.submissions.append_table(row, overwrite=True)  # type: ignore
         return result
