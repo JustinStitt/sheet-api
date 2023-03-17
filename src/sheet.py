@@ -308,7 +308,7 @@ class Sheet:
             row = [gettime(), team_name, 'woc-bonus', 'TRUE', str(0), 'Bonus For Completing At Least One Part For Each Day of WoC']
             self._submissions.append_table(row, overwrite=True)  # type: ignore
             # award points
-            self.adjustScore('woc4', team_name, 1337)
+            # self.adjustScore('woc4', team_name, 1337)
             return True
 
         return False
@@ -336,8 +336,9 @@ class Sheet:
             print("ADJUSTING SCORE FOR: ", problem, team_name, output)
             logging.info(f"ADJUSTING SCORE: {problem=}, {team_name=}, {output=}")
             try:
-                self.adjustScore(event_name, team_name, value)
                 result = self.awardWOCBonus(team_name)
+                # self.adjustScore('woc4', team_name, 1337)
+                self.adjustScore(event_name, team_name, value + 1337)
                 logging.info(f'AWARDING WOC BONUS FOR {team_name=} bonus-{result=}')
             except:
                 logging.error("COULDNT ADJUST SCORE FOR")
