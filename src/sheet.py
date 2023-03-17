@@ -337,8 +337,9 @@ class Sheet:
             logging.info(f"ADJUSTING SCORE: {problem=}, {team_name=}, {output=}")
             try:
                 result = self.awardWOCBonus(team_name)
+                more = 1337 if result else 0
                 # self.adjustScore('woc4', team_name, 1337)
-                self.adjustScore(event_name, team_name, value + 1337)
+                self.adjustScore(event_name, team_name, value + more)
                 logging.info(f'AWARDING WOC BONUS FOR {team_name=} bonus-{result=}')
             except:
                 logging.error("COULDNT ADJUST SCORE FOR")
