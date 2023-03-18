@@ -298,11 +298,13 @@ class Sheet:
                     len(re.findall(pattern, record.get('problem', '')))
                     ):
                 solved.add(record['problem'][0])
-            if record.get('problem', '') == 'woc-bonus':
+            if record.get('team-name') == team_name and record.get('problem', '') == 'woc-bonus':
                 awarded_already = True
+                print('awarded already')
                 return False
 
         # log the bonus
+        print(solved)
         meets_criteria = len(solved) == 5
         if meets_criteria and not awarded_already:
             row = [gettime(), team_name, 'woc-bonus', 'TRUE', str(0), 'Bonus For Completing At Least One Part For Each Day of WoC']
@@ -440,8 +442,8 @@ class Sheet:
 if __name__ == "__main__":
     sheet = Sheet()
     # print(sheet.getSolvedFlags("rev", "acmgang"))
-    print(sheet.awardWOCBonus("acmgang"))
-    # sheet.adjustScore("woc3", "sin", 1)
+    # print(sheet.awardWOCBonus("thehogriders"))
+    # sheet.adjustScore("woc4", "thehogriders", 1337)
     # print(sheet.getTotal('sin'))
     # print(sheet.isFlagCorrect("osint", 2, "flag{more_stuff}", "acmgang"))
     # print(sheet.getGraph())
