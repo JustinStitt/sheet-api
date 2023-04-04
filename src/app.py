@@ -1,12 +1,12 @@
 from datetime import timedelta
-from os import getenv
+from os import getenv, path, listdir
 import time
 from typing import Literal
 
 from flask_cors import CORS
 
 from dotenv import load_dotenv
-from flask import Flask, current_app, jsonify, make_response, request, g as app_ctx
+from flask import Flask, current_app, send_from_directory, jsonify, session, make_response, flash, url_for,  redirect, request, g as app_ctx
 from flask_jwt_extended import (
     JWTManager,
     create_access_token,
@@ -14,6 +14,7 @@ from flask_jwt_extended import (
     jwt_required,
 )
 from flask_restful import Api, Resource
+from werkzeug.utils import secure_filename
 from sheet import Sheet
 import logging
 
@@ -21,16 +22,23 @@ load_dotenv()
 
 logging.basicConfig(filename="flask.log", level=logging.DEBUG)
 app = Flask(__name__, static_folder="../docs")
+app.secret_key = "secret!"
 api = Api(app)
 sheet = Sheet()
 CORS(
     app, resources={r"*": {"origins": "*"}}
 )  # might need supports_credentials for set-cookie
 
+UPLOAD_FOLDER = "./uploads"
+ALLOWED_EXTENSIONS = {"txt", "md"}
+
 app.config["JWT_SECRET_KEY"] = getenv("JWT_SECRET_KEY")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=10**4)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 jwt = JWTManager(app)
 
+def allowed_file(filename: str) -> bool:
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.before_request
 def logging_before():
@@ -60,6 +68,56 @@ class Home(Resource):
 
     def get(self):
         return "Welcome to the ACM March Madness Sheet API!", 200
+
+class UploadFile(Resource):
+    def get(self):
+        headers = {"Content-Type": 'text/html'}
+        return make_response('''
+        <!doctype html>
+        <title>Upload new File</title>
+        <h1>Upload new File</h1>
+        <form method=post enctype=multipart/form-data>
+          <input type=file name=file>
+          <input type=submit value=Upload>
+        </form>
+        <a href="/files">View Files</a>
+        ''', 200, headers)
+
+
+    def post(self):
+        # check if the post request has the file part
+        if 'file' not in request.files:
+            return "No file type", 404
+        file = request.files['file']
+        # If the user does not select a file, the browser submits an
+        # empty file without a filename.
+        if file.filename == '':
+            return  'No selected file', 404
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(path.join(app.config['UPLOAD_FOLDER'], filename))
+            return redirect(url_for('downloadfile', filename=filename))
+        return f"Bad File Extension... Only {ALLOWED_EXTENSIONS} are allowed!", 406
+
+class DownloadFile(Resource):
+    def get(self, filename: str):
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+class ListFiles(Resource):
+    def get(self):
+        files = listdir(UPLOAD_FOLDER)
+        html = f'''
+        <!doctype HTML>
+        <title>Files</title>
+        <h1>Files</h1>
+        <ul>
+        {''.join(['<li><a href="/download_file/' + file + '">' + file + "</a></li>" for file in files])}
+        </ul>
+        <a href="/upload_file">Upload File</a>
+        '''
+        headers = {"Content-Type": "text/html"}
+        return make_response(html, 200, headers)
+
 
 
 class Login(Resource):
@@ -449,6 +507,9 @@ api.add_resource(LeaveTeam, "/leave_team")
 api.add_resource(GetToken, "/get_token")
 api.add_resource(CheckFlag, "/check_flag")
 api.add_resource(CheckSolvedFlags, "/check_solved_flags")
+api.add_resource(UploadFile, "/upload_file")
+api.add_resource(DownloadFile, "/download_file/<filename>")
+api.add_resource(ListFiles, "/files")
 
 
 if __name__ == "__main__":
