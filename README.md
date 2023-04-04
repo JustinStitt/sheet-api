@@ -44,3 +44,7 @@ Check the docs on your localserver by navigating to `localhost:5000/docs`
 * [Demo](https://youtu.be/auW53h94Meg)
 
 * [Checklist](https://youtu.be/fa6x4itmgmU)
+
+#### Other
+
+Check out the (now archived) production site [March Madness](https://madness.acmcsuf.com)
