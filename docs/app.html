@@ -27,14 +27,26 @@
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">from datetime import timedelta
-from os import getenv
+from os import getenv, path, listdir, stat
 import time
 from typing import Literal
 
 from flask_cors import CORS
 
 from dotenv import load_dotenv
-from flask import Flask, current_app, jsonify, make_response, request, g as app_ctx
+from flask import (
+    Flask,
+    current_app,
+    send_from_directory,
+    jsonify,
+    session,
+    make_response,
+    flash,
+    url_for,
+    redirect,
+    request,
+    g as app_ctx,
+)
 from flask_jwt_extended import (
     JWTManager,
     create_access_token,
@@ -42,6 +54,7 @@ from flask_jwt_extended import (
     jwt_required,
 )
 from flask_restful import Api, Resource
+from werkzeug.utils import secure_filename
 from sheet import Sheet
 import logging
 
@@ -49,15 +62,24 @@ load_dotenv()
 
 logging.basicConfig(filename=&#34;flask.log&#34;, level=logging.DEBUG)
 app = Flask(__name__, static_folder=&#34;../docs&#34;)
+app.secret_key = &#34;secret!&#34;
 api = Api(app)
 sheet = Sheet()
 CORS(
     app, resources={r&#34;*&#34;: {&#34;origins&#34;: &#34;*&#34;}}
 )  # might need supports_credentials for set-cookie
 
+UPLOAD_FOLDER = &#34;./uploads&#34;
+ALLOWED_EXTENSIONS = {&#34;txt&#34;, &#34;md&#34;}
+
 app.config[&#34;JWT_SECRET_KEY&#34;] = getenv(&#34;JWT_SECRET_KEY&#34;)
 app.config[&#34;JWT_ACCESS_TOKEN_EXPIRES&#34;] = timedelta(hours=10**4)
+app.config[&#34;UPLOAD_FOLDER&#34;] = UPLOAD_FOLDER
 jwt = JWTManager(app)
+
+
+def allowed_file(filename: str) -&gt; bool:
+    return &#34;.&#34; in filename and filename.rsplit(&#34;.&#34;, 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 @app.before_request
@@ -90,6 +112,68 @@ class Home(Resource):
         return &#34;Welcome to the ACM March Madness Sheet API!&#34;, 200
 
 
+class UploadFile(Resource):
+    def get(self):
+        headers = {&#34;Content-Type&#34;: &#34;text/html&#34;}
+        return make_response(
+            &#34;&#34;&#34;
+        &lt;!doctype html&gt;
+        &lt;title&gt;Upload new File&lt;/title&gt;
+        &lt;h1&gt;Upload new File&lt;/h1&gt;
+        &lt;form method=post enctype=multipart/form-data&gt;
+          &lt;input type=file name=file&gt;
+          &lt;input type=submit value=Upload&gt;
+        &lt;/form&gt;
+        &lt;a href=&#34;/files&#34;&gt;View Files&lt;/a&gt;
+        &#34;&#34;&#34;,
+            200,
+            headers,
+        )
+
+    def post(self):
+        # check if the post request has the file part
+        if &#34;file&#34; not in request.files:
+            return &#34;No file type&#34;, 404
+        file = request.files[&#34;file&#34;]
+        # check size of file
+        size = len(file.read())  # in bytes
+        if size &gt; 2000:  # greater than 2kb
+            return &#34;File too large&#34;, 413
+        # If the user does not select a file, the browser submits an
+        # empty file without a filename.
+        if file.filename == &#34;&#34;:
+            return &#34;No selected file&#34;, 404
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.stream.seek(0)
+            file.save(path.join(app.config[&#34;UPLOAD_FOLDER&#34;], filename))
+            return redirect(url_for(&#34;downloadfile&#34;, filename=filename))
+        return f&#34;Bad File Extension... Only {ALLOWED_EXTENSIONS} are allowed!&#34;, 406
+
+
+class DownloadFile(Resource):
+    def get(self, filename: str):
+        return send_from_directory(app.config[&#34;UPLOAD_FOLDER&#34;], filename)
+
+
+class ListFiles(Resource):
+    def get(self):
+        filenames = listdir(UPLOAD_FOLDER)
+        sizes = [stat(UPLOAD_FOLDER + &#34;/&#34; + filename).st_size for filename in filenames]
+        files = zip(filenames, sizes)
+        html = f&#34;&#34;&#34;
+        &lt;!doctype HTML&gt;
+        &lt;title&gt;Files&lt;/title&gt;
+        &lt;h1&gt;Files&lt;/h1&gt;
+        &lt;ul&gt;
+        {&#39;&#39;.join([&#39;&lt;li&gt;&lt;a href=&#34;/download_file/&#39; + file + &#39;&#34;&gt;&#39; + file + &#34;&lt;/a&gt; - &lt;mark&gt;&#34; + str(size) + &#34;b&lt;/mark&gt;&lt;/li&gt;&#34; for file, size in files])}
+        &lt;/ul&gt;
+        &lt;a href=&#34;/upload_file&#34;&gt;Upload File&lt;/a&gt;
+        &#34;&#34;&#34;
+        headers = {&#34;Content-Type&#34;: &#34;text/html&#34;}
+        return make_response(html, 200, headers)
+
+
 class Login(Resource):
     def post(self):
         args = request.args
@@ -109,7 +193,7 @@ class Docs(Resource):
 
 class CreateTeam(Resource):
     &#34;&#34;&#34;
-    Serves the &#34;/create_team&#34; endpoint with method(s): [POST]
+    Serves the &#34;/create_team&#34; endpoint with method(s): [GET]
 
     Creates a new team for the ACM March Madness Event. Adds to Google Sheet backend.
 
@@ -129,12 +213,13 @@ class CreateTeam(Resource):
     def get(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
-        resp = sheet.createTeam(team_name)
+        captain_name = args[&#34;captain_name&#34;]
+        resp = sheet.createTeam(team_name, captain_name)
         if resp[&#34;status&#34;] == 200:
             res = make_response(jsonify(resp), 200)
             res.set_cookie(&#34;team&#34;, resp[&#34;team_name&#34;])
             return res
-        return make_response(jsonify(resp), 304)
+        return make_response(jsonify(resp), int(resp[&#34;status&#34;]))
 
 
 class CreateEvent(Resource):
@@ -336,7 +421,7 @@ class GetTeamFromToken(Resource):
         token = args[&#34;token&#34;]
         resp = sheet.getTeamFromToken(token)
         if resp is None:  # didn&#39;t find team
-            return &#34;Couldn&#39;t find team from token&#34;, 404
+            return &#34;Couldn&#39;t find team from token&#34;, 404 # not found!
         hresp = make_response({&#34;team&#34;: resp}, 200)
         hresp.set_cookie(&#34;team&#34;, resp)
         return hresp
@@ -360,6 +445,101 @@ class GetGraphData(Resource):
         return resp, 200
 
 
+class GetInputIndex(Resource):
+    def get(self):
+        args = request.args
+        team_name = args[&#34;team_name&#34;]
+        resp = sheet.getRandomInputIndexForTeam(team_name=team_name, num_inputs=100)
+        return {&#34;index&#34;: resp}, 200
+
+
+class GetJudgement(Resource):
+    def get(self):
+        args = request.args
+        problem = args[&#34;problem&#34;]
+        # input_idx = int(args[&#34;input_index&#34;])
+        team_name = args[&#34;team_name&#34;]
+        input_idx = sheet.getRandomInputIndexForTeam(100, team_name)
+        if input_idx not in range(0, 100):
+            return {&#34;judgement&#34;: &#34;False&#34;, &#34;message&#34;: &#34;bad input index&#34;}, 403
+        output = args[&#34;output&#34;].strip()
+        resp = sheet.getJudgement(problem, input_idx, output, team_name)
+        return {&#34;judgement&#34;: str(resp)}, 200
+
+
+class GetPastSubmissions(Resource):
+    def get(self):
+        args = request.args
+        team_name = args[&#34;team_name&#34;]
+        problem = args[&#34;problem&#34;]
+        resp = sheet.getPastSubmissions(team_name, problem)
+        return {&#34;data&#34;: resp}, 200
+
+
+class JoinTeam(Resource):
+    def get(self):
+        args = request.args
+        token = args[&#34;token&#34;]
+        member_name = args[&#34;member_name&#34;]
+        resp = sheet.joinTeam(token, member_name)
+        if resp is None:
+            return {
+                &#34;team&#34;: None,
+                &#34;message&#34;: &#34;bad team join, maybe member name empty!&#34;,
+            }, 403
+        hresp = make_response({&#34;team&#34;: resp}, 200)
+        return hresp
+
+
+class LeaveTeam(Resource):
+    def get(self):
+        args = request.args
+        team_name = args[&#34;team_name&#34;]
+        member_name = args[&#34;member_name&#34;]
+        resp = sheet.leaveTeam(team_name, member_name)
+        if resp:
+            return {&#34;message&#34;: &#34;Team Leave successful&#34;}, 200
+        return {&#34;message&#34;: &#34;Team leave failed&#34;}, 403
+
+
+class GetToken(Resource):
+    def get(self):
+        args = request.args
+        team_name = args[&#34;team_name&#34;]
+        if not team_name or len(team_name) &lt; 1:
+            return {&#34;message&#34;: &#34;bad team&#34;}, 403
+        resp = sheet.getTokenFromTeam(team_name)
+        return {&#34;token&#34;: resp}, 200
+
+
+class CheckFlag(Resource):
+    def get(self):
+        args = request.args
+        category = args[&#34;category&#34;]
+        team_name = args[&#34;team_name&#34;]
+        try:
+            problem_idx = int(args[&#34;problem_idx&#34;])
+        except:
+            return {&#34;message&#34;: f&#34;bad argument {problem_idx=}&#34;}, 403
+
+        flag = args[&#34;flag&#34;]
+        resp = sheet.isFlagCorrect(category, problem_idx, flag, team_name)
+        if resp is False:
+            return {&#34;message&#34;: &#34;incorrect&#34;}, 200
+
+        return {&#34;message&#34;: &#34;correct&#34;}, 200
+
+
+class CheckSolvedFlags(Resource):
+    def get(self):
+        args = request.args
+        category = args[&#34;category&#34;]
+        team_name = args[&#34;team_name&#34;]
+        resp = sheet.getSolvedFlags(category, team_name)
+
+        return {&#34;data&#34;: resp}, 200
+
+
 api.add_resource(Home, &#34;/&#34;)
 api.add_resource(Login, &#34;/login&#34;)
 api.add_resource(Docs, &#34;/docs&#34;)
@@ -369,10 +549,22 @@ api.add_resource(GetScores, &#34;/scores/&lt;team_name&gt;&#34;)
 api.add_resource(GetScore, &#34;/scores/&lt;team_name&gt;/&lt;event_name&gt;&#34;)
 api.add_resource(SetScore, &#34;/set_score&#34;)
 api.add_resource(AdjustScore, &#34;/adjust_score&#34;)
-api.add_resource(ChangeTeamName, &#34;/change_team_name&#34;)
+# api.add_resource(ChangeTeamName, &#34;/change_team_name&#34;)
 api.add_resource(GetScoreboard, &#34;/scoreboard&#34;)
 api.add_resource(GetTeamFromToken, &#34;/token_lookup&#34;)
 api.add_resource(GetGraphData, &#34;/get_graph&#34;)
+api.add_resource(GetInputIndex, &#34;/get_index&#34;)
+api.add_resource(GetJudgement, &#34;/get_judgement&#34;)
+api.add_resource(GetPastSubmissions, &#34;/get_submissions&#34;)
+api.add_resource(JoinTeam, &#34;/join_team&#34;)
+api.add_resource(LeaveTeam, &#34;/leave_team&#34;)
+api.add_resource(GetToken, &#34;/get_token&#34;)
+api.add_resource(CheckFlag, &#34;/check_flag&#34;)
+api.add_resource(CheckSolvedFlags, &#34;/check_solved_flags&#34;)
+api.add_resource(UploadFile, &#34;/upload_file&#34;)
+api.add_resource(DownloadFile, &#34;/download_file/&lt;filename&gt;&#34;)
+api.add_resource(ListFiles, &#34;/files&#34;)
+
 
 if __name__ == &#34;__main__&#34;:
     app.run(debug=True)</code></pre>
@@ -385,6 +577,19 @@ if __name__ == &#34;__main__&#34;:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="app.allowed_file"><code class="name flex">
+<span>def <span class="ident">allowed_file</span></span>(<span>filename: str) ‑> bool</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def allowed_file(filename: str) -&gt; bool:
+    return &#34;.&#34; in filename and filename.rsplit(&#34;.&#34;, 1)[1].lower() in ALLOWED_EXTENSIONS</code></pre>
+</details>
+</dd>
 <dt id="app.logging_after"><code class="name flex">
 <span>def <span class="ident">logging_after</span></span>(<span>response)</span>
 </code></dt>
@@ -597,10 +802,6 @@ Sets the current score for a team for a specific event.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
-<dt id="app.ChangeTeamName.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="app.ChangeTeamName.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
 <dd>
 <div class="desc"></div>
@@ -608,18 +809,6 @@ Sets the current score for a team for a specific event.</p>
 </dl>
 <h3>Methods</h3>
 <dl>
-<dt id="app.ChangeTeamName.mediatypes"><code class="name flex">
-<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
-</details>
-</dd>
 <dt id="app.ChangeTeamName.post"><code class="name flex">
 <span>def <span class="ident">post</span></span>(<span>self)</span>
 </code></dt>
@@ -637,6 +826,172 @@ def post(self):
     new_name = args[&#34;new_name&#34;]
     resp = sheet.changeTeamName(team_name, new_name)
     return resp</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.CheckFlag"><code class="flex name class">
+<span>class <span class="ident">CheckFlag</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CheckFlag(Resource):
+    def get(self):
+        args = request.args
+        category = args[&#34;category&#34;]
+        team_name = args[&#34;team_name&#34;]
+        try:
+            problem_idx = int(args[&#34;problem_idx&#34;])
+        except:
+            return {&#34;message&#34;: f&#34;bad argument {problem_idx=}&#34;}, 403
+
+        flag = args[&#34;flag&#34;]
+        resp = sheet.isFlagCorrect(category, problem_idx, flag, team_name)
+        if resp is False:
+            return {&#34;message&#34;: &#34;incorrect&#34;}, 200
+
+        return {&#34;message&#34;: &#34;correct&#34;}, 200</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.CheckFlag.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.CheckFlag.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.CheckFlag.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    args = request.args
+    category = args[&#34;category&#34;]
+    team_name = args[&#34;team_name&#34;]
+    try:
+        problem_idx = int(args[&#34;problem_idx&#34;])
+    except:
+        return {&#34;message&#34;: f&#34;bad argument {problem_idx=}&#34;}, 403
+
+    flag = args[&#34;flag&#34;]
+    resp = sheet.isFlagCorrect(category, problem_idx, flag, team_name)
+    if resp is False:
+        return {&#34;message&#34;: &#34;incorrect&#34;}, 200
+
+    return {&#34;message&#34;: &#34;correct&#34;}, 200</code></pre>
+</details>
+</dd>
+<dt id="app.CheckFlag.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.CheckSolvedFlags"><code class="flex name class">
+<span>class <span class="ident">CheckSolvedFlags</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class CheckSolvedFlags(Resource):
+    def get(self):
+        args = request.args
+        category = args[&#34;category&#34;]
+        team_name = args[&#34;team_name&#34;]
+        resp = sheet.getSolvedFlags(category, team_name)
+
+        return {&#34;data&#34;: resp}, 200</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.CheckSolvedFlags.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.CheckSolvedFlags.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.CheckSolvedFlags.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    args = request.args
+    category = args[&#34;category&#34;]
+    team_name = args[&#34;team_name&#34;]
+    resp = sheet.getSolvedFlags(category, team_name)
+
+    return {&#34;data&#34;: resp}, 200</code></pre>
+</details>
+</dd>
+<dt id="app.CheckSolvedFlags.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
 </details>
 </dd>
 </dl>
@@ -744,7 +1099,7 @@ def post(self):
 <span>class <span class="ident">CreateTeam</span></span>
 </code></dt>
 <dd>
-<div class="desc"><p>Serves the "/create_team" endpoint with method(s): [POST]</p>
+<div class="desc"><p>Serves the "/create_team" endpoint with method(s): [GET]</p>
 <p>Creates a new team for the ACM March Madness Event. Adds to Google Sheet backend.</p>
 <p>Teams must be unique and should be chosen with cAsE in mind, as this matters throughout the API.</p>
 <p>URL Parameters:
@@ -765,7 +1120,7 @@ def post(self):
 </summary>
 <pre><code class="python">class CreateTeam(Resource):
     &#34;&#34;&#34;
-    Serves the &#34;/create_team&#34; endpoint with method(s): [POST]
+    Serves the &#34;/create_team&#34; endpoint with method(s): [GET]
 
     Creates a new team for the ACM March Madness Event. Adds to Google Sheet backend.
 
@@ -785,12 +1140,13 @@ def post(self):
     def get(self):
         args = request.args
         team_name = args[&#34;team_name&#34;]
-        resp = sheet.createTeam(team_name)
+        captain_name = args[&#34;captain_name&#34;]
+        resp = sheet.createTeam(team_name, captain_name)
         if resp[&#34;status&#34;] == 200:
             res = make_response(jsonify(resp), 200)
             res.set_cookie(&#34;team&#34;, resp[&#34;team_name&#34;])
             return res
-        return make_response(jsonify(resp), 304)</code></pre>
+        return make_response(jsonify(resp), int(resp[&#34;status&#34;]))</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -823,12 +1179,13 @@ def post(self):
 <pre><code class="python">def get(self):
     args = request.args
     team_name = args[&#34;team_name&#34;]
-    resp = sheet.createTeam(team_name)
+    captain_name = args[&#34;captain_name&#34;]
+    resp = sheet.createTeam(team_name, captain_name)
     if resp[&#34;status&#34;] == 200:
         res = make_response(jsonify(resp), 200)
         res.set_cookie(&#34;team&#34;, resp[&#34;team_name&#34;])
         return res
-    return make_response(jsonify(resp), 304)</code></pre>
+    return make_response(jsonify(resp), int(resp[&#34;status&#34;]))</code></pre>
 </details>
 </dd>
 <dt id="app.CreateTeam.mediatypes"><code class="name flex">
@@ -897,6 +1254,71 @@ from the url rule used when adding the resource to an Api instance. See
 </details>
 </dd>
 <dt id="app.Docs.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.DownloadFile"><code class="flex name class">
+<span>class <span class="ident">DownloadFile</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DownloadFile(Resource):
+    def get(self, filename: str):
+        return send_from_directory(app.config[&#34;UPLOAD_FOLDER&#34;], filename)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.DownloadFile.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.DownloadFile.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.DownloadFile.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self, filename: str)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self, filename: str):
+    return send_from_directory(app.config[&#34;UPLOAD_FOLDER&#34;], filename)</code></pre>
+</details>
+</dd>
+<dt id="app.DownloadFile.mediatypes"><code class="name flex">
 <span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
 </code></dt>
 <dd>
@@ -983,6 +1405,233 @@ from the url rule used when adding the resource to an Api instance. See
 </details>
 </dd>
 <dt id="app.GetGraphData.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.GetInputIndex"><code class="flex name class">
+<span>class <span class="ident">GetInputIndex</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetInputIndex(Resource):
+    def get(self):
+        args = request.args
+        team_name = args[&#34;team_name&#34;]
+        resp = sheet.getRandomInputIndexForTeam(team_name=team_name, num_inputs=100)
+        return {&#34;index&#34;: resp}, 200</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.GetInputIndex.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.GetInputIndex.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.GetInputIndex.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    args = request.args
+    team_name = args[&#34;team_name&#34;]
+    resp = sheet.getRandomInputIndexForTeam(team_name=team_name, num_inputs=100)
+    return {&#34;index&#34;: resp}, 200</code></pre>
+</details>
+</dd>
+<dt id="app.GetInputIndex.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.GetJudgement"><code class="flex name class">
+<span>class <span class="ident">GetJudgement</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetJudgement(Resource):
+    def get(self):
+        args = request.args
+        problem = args[&#34;problem&#34;]
+        # input_idx = int(args[&#34;input_index&#34;])
+        team_name = args[&#34;team_name&#34;]
+        input_idx = sheet.getRandomInputIndexForTeam(100, team_name)
+        if input_idx not in range(0, 100):
+            return {&#34;judgement&#34;: &#34;False&#34;, &#34;message&#34;: &#34;bad input index&#34;}, 403
+        output = args[&#34;output&#34;].strip()
+        resp = sheet.getJudgement(problem, input_idx, output, team_name)
+        return {&#34;judgement&#34;: str(resp)}, 200</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.GetJudgement.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.GetJudgement.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.GetJudgement.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    args = request.args
+    problem = args[&#34;problem&#34;]
+    # input_idx = int(args[&#34;input_index&#34;])
+    team_name = args[&#34;team_name&#34;]
+    input_idx = sheet.getRandomInputIndexForTeam(100, team_name)
+    if input_idx not in range(0, 100):
+        return {&#34;judgement&#34;: &#34;False&#34;, &#34;message&#34;: &#34;bad input index&#34;}, 403
+    output = args[&#34;output&#34;].strip()
+    resp = sheet.getJudgement(problem, input_idx, output, team_name)
+    return {&#34;judgement&#34;: str(resp)}, 200</code></pre>
+</details>
+</dd>
+<dt id="app.GetJudgement.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.GetPastSubmissions"><code class="flex name class">
+<span>class <span class="ident">GetPastSubmissions</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetPastSubmissions(Resource):
+    def get(self):
+        args = request.args
+        team_name = args[&#34;team_name&#34;]
+        problem = args[&#34;problem&#34;]
+        resp = sheet.getPastSubmissions(team_name, problem)
+        return {&#34;data&#34;: resp}, 200</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.GetPastSubmissions.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.GetPastSubmissions.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.GetPastSubmissions.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    args = request.args
+    team_name = args[&#34;team_name&#34;]
+    problem = args[&#34;problem&#34;]
+    resp = sheet.getPastSubmissions(team_name, problem)
+    return {&#34;data&#34;: resp}, 200</code></pre>
+</details>
+</dd>
+<dt id="app.GetPastSubmissions.mediatypes"><code class="name flex">
 <span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
 </code></dt>
 <dd>
@@ -1305,7 +1954,7 @@ from the url rule used when adding the resource to an Api instance. See
         token = args[&#34;token&#34;]
         resp = sheet.getTeamFromToken(token)
         if resp is None:  # didn&#39;t find team
-            return &#34;Couldn&#39;t find team from token&#34;, 404
+            return &#34;Couldn&#39;t find team from token&#34;, 404 # not found!
         hresp = make_response({&#34;team&#34;: resp}, 200)
         hresp.set_cookie(&#34;team&#34;, resp)
         return hresp</code></pre>
@@ -1343,13 +1992,88 @@ from the url rule used when adding the resource to an Api instance. See
     token = args[&#34;token&#34;]
     resp = sheet.getTeamFromToken(token)
     if resp is None:  # didn&#39;t find team
-        return &#34;Couldn&#39;t find team from token&#34;, 404
+        return &#34;Couldn&#39;t find team from token&#34;, 404 # not found!
     hresp = make_response({&#34;team&#34;: resp}, 200)
     hresp.set_cookie(&#34;team&#34;, resp)
     return hresp</code></pre>
 </details>
 </dd>
 <dt id="app.GetTeamFromToken.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.GetToken"><code class="flex name class">
+<span>class <span class="ident">GetToken</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GetToken(Resource):
+    def get(self):
+        args = request.args
+        team_name = args[&#34;team_name&#34;]
+        if not team_name or len(team_name) &lt; 1:
+            return {&#34;message&#34;: &#34;bad team&#34;}, 403
+        resp = sheet.getTokenFromTeam(team_name)
+        return {&#34;token&#34;: resp}, 200</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.GetToken.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.GetToken.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.GetToken.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    args = request.args
+    team_name = args[&#34;team_name&#34;]
+    if not team_name or len(team_name) &lt; 1:
+        return {&#34;message&#34;: &#34;bad team&#34;}, 403
+    resp = sheet.getTokenFromTeam(team_name)
+    return {&#34;token&#34;: resp}, 200</code></pre>
+</details>
+</dd>
+<dt id="app.GetToken.mediatypes"><code class="name flex">
 <span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
 </code></dt>
 <dd>
@@ -1417,6 +2141,259 @@ from the url rule used when adding the resource to an Api instance. See
 </details>
 </dd>
 <dt id="app.Home.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.JoinTeam"><code class="flex name class">
+<span>class <span class="ident">JoinTeam</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class JoinTeam(Resource):
+    def get(self):
+        args = request.args
+        token = args[&#34;token&#34;]
+        member_name = args[&#34;member_name&#34;]
+        resp = sheet.joinTeam(token, member_name)
+        if resp is None:
+            return {
+                &#34;team&#34;: None,
+                &#34;message&#34;: &#34;bad team join, maybe member name empty!&#34;,
+            }, 403
+        hresp = make_response({&#34;team&#34;: resp}, 200)
+        return hresp</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.JoinTeam.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.JoinTeam.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.JoinTeam.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    args = request.args
+    token = args[&#34;token&#34;]
+    member_name = args[&#34;member_name&#34;]
+    resp = sheet.joinTeam(token, member_name)
+    if resp is None:
+        return {
+            &#34;team&#34;: None,
+            &#34;message&#34;: &#34;bad team join, maybe member name empty!&#34;,
+        }, 403
+    hresp = make_response({&#34;team&#34;: resp}, 200)
+    return hresp</code></pre>
+</details>
+</dd>
+<dt id="app.JoinTeam.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.LeaveTeam"><code class="flex name class">
+<span>class <span class="ident">LeaveTeam</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LeaveTeam(Resource):
+    def get(self):
+        args = request.args
+        team_name = args[&#34;team_name&#34;]
+        member_name = args[&#34;member_name&#34;]
+        resp = sheet.leaveTeam(team_name, member_name)
+        if resp:
+            return {&#34;message&#34;: &#34;Team Leave successful&#34;}, 200
+        return {&#34;message&#34;: &#34;Team leave failed&#34;}, 403</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.LeaveTeam.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.LeaveTeam.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.LeaveTeam.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    args = request.args
+    team_name = args[&#34;team_name&#34;]
+    member_name = args[&#34;member_name&#34;]
+    resp = sheet.leaveTeam(team_name, member_name)
+    if resp:
+        return {&#34;message&#34;: &#34;Team Leave successful&#34;}, 200
+    return {&#34;message&#34;: &#34;Team leave failed&#34;}, 403</code></pre>
+</details>
+</dd>
+<dt id="app.LeaveTeam.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="app.ListFiles"><code class="flex name class">
+<span>class <span class="ident">ListFiles</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ListFiles(Resource):
+    def get(self):
+        filenames = listdir(UPLOAD_FOLDER)
+        sizes = [stat(UPLOAD_FOLDER + &#34;/&#34; + filename).st_size for filename in filenames]
+        files = zip(filenames, sizes)
+        html = f&#34;&#34;&#34;
+        &lt;!doctype HTML&gt;
+        &lt;title&gt;Files&lt;/title&gt;
+        &lt;h1&gt;Files&lt;/h1&gt;
+        &lt;ul&gt;
+        {&#39;&#39;.join([&#39;&lt;li&gt;&lt;a href=&#34;/download_file/&#39; + file + &#39;&#34;&gt;&#39; + file + &#34;&lt;/a&gt; - &lt;mark&gt;&#34; + str(size) + &#34;b&lt;/mark&gt;&lt;/li&gt;&#34; for file, size in files])}
+        &lt;/ul&gt;
+        &lt;a href=&#34;/upload_file&#34;&gt;Upload File&lt;/a&gt;
+        &#34;&#34;&#34;
+        headers = {&#34;Content-Type&#34;: &#34;text/html&#34;}
+        return make_response(html, 200, headers)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.ListFiles.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.ListFiles.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.ListFiles.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    filenames = listdir(UPLOAD_FOLDER)
+    sizes = [stat(UPLOAD_FOLDER + &#34;/&#34; + filename).st_size for filename in filenames]
+    files = zip(filenames, sizes)
+    html = f&#34;&#34;&#34;
+    &lt;!doctype HTML&gt;
+    &lt;title&gt;Files&lt;/title&gt;
+    &lt;h1&gt;Files&lt;/h1&gt;
+    &lt;ul&gt;
+    {&#39;&#39;.join([&#39;&lt;li&gt;&lt;a href=&#34;/download_file/&#39; + file + &#39;&#34;&gt;&#39; + file + &#34;&lt;/a&gt; - &lt;mark&gt;&#34; + str(size) + &#34;b&lt;/mark&gt;&lt;/li&gt;&#34; for file, size in files])}
+    &lt;/ul&gt;
+    &lt;a href=&#34;/upload_file&#34;&gt;Upload File&lt;/a&gt;
+    &#34;&#34;&#34;
+    headers = {&#34;Content-Type&#34;: &#34;text/html&#34;}
+    return make_response(html, 200, headers)</code></pre>
+</details>
+</dd>
+<dt id="app.ListFiles.mediatypes"><code class="name flex">
 <span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
 </code></dt>
 <dd>
@@ -1615,6 +2592,149 @@ def post(self):
 </dd>
 </dl>
 </dd>
+<dt id="app.UploadFile"><code class="flex name class">
+<span>class <span class="ident">UploadFile</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Represents an abstract RESTful resource. Concrete resources should
+extend from this class and expose methods for each supported HTTP
+method. If a resource is invoked with an unsupported HTTP method,
+the API will return a response with status 405 Method Not Allowed.
+Otherwise the appropriate method is called and passed all arguments
+from the url rule used when adding the resource to an Api instance. See
+:meth:<code>~flask_restful.Api.add_resource</code> for details.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UploadFile(Resource):
+    def get(self):
+        headers = {&#34;Content-Type&#34;: &#34;text/html&#34;}
+        return make_response(
+            &#34;&#34;&#34;
+        &lt;!doctype html&gt;
+        &lt;title&gt;Upload new File&lt;/title&gt;
+        &lt;h1&gt;Upload new File&lt;/h1&gt;
+        &lt;form method=post enctype=multipart/form-data&gt;
+          &lt;input type=file name=file&gt;
+          &lt;input type=submit value=Upload&gt;
+        &lt;/form&gt;
+        &lt;a href=&#34;/files&#34;&gt;View Files&lt;/a&gt;
+        &#34;&#34;&#34;,
+            200,
+            headers,
+        )
+
+    def post(self):
+        # check if the post request has the file part
+        if &#34;file&#34; not in request.files:
+            return &#34;No file type&#34;, 404
+        file = request.files[&#34;file&#34;]
+        # check size of file
+        size = len(file.read())  # in bytes
+        if size &gt; 2000:  # greater than 2kb
+            return &#34;File too large&#34;, 413
+        # If the user does not select a file, the browser submits an
+        # empty file without a filename.
+        if file.filename == &#34;&#34;:
+            return &#34;No selected file&#34;, 404
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.stream.seek(0)
+            file.save(path.join(app.config[&#34;UPLOAD_FOLDER&#34;], filename))
+            return redirect(url_for(&#34;downloadfile&#34;, filename=filename))
+        return f&#34;Bad File Extension... Only {ALLOWED_EXTENSIONS} are allowed!&#34;, 406</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>flask_restful.Resource</li>
+<li>flask.views.MethodView</li>
+<li>flask.views.View</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="app.UploadFile.endpoint"><code class="name">var <span class="ident">endpoint</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="app.UploadFile.methods"><code class="name">var <span class="ident">methods</span> : ClassVar[Optional[Collection[str]]]</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="app.UploadFile.get"><code class="name flex">
+<span>def <span class="ident">get</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get(self):
+    headers = {&#34;Content-Type&#34;: &#34;text/html&#34;}
+    return make_response(
+        &#34;&#34;&#34;
+    &lt;!doctype html&gt;
+    &lt;title&gt;Upload new File&lt;/title&gt;
+    &lt;h1&gt;Upload new File&lt;/h1&gt;
+    &lt;form method=post enctype=multipart/form-data&gt;
+      &lt;input type=file name=file&gt;
+      &lt;input type=submit value=Upload&gt;
+    &lt;/form&gt;
+    &lt;a href=&#34;/files&#34;&gt;View Files&lt;/a&gt;
+    &#34;&#34;&#34;,
+        200,
+        headers,
+    )</code></pre>
+</details>
+</dd>
+<dt id="app.UploadFile.mediatypes"><code class="name flex">
+<span>def <span class="ident">mediatypes</span></span>(<span>resource_cls)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">return lambda resource_cls: self.mediatypes() + [self.default_mediatype]</code></pre>
+</details>
+</dd>
+<dt id="app.UploadFile.post"><code class="name flex">
+<span>def <span class="ident">post</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def post(self):
+    # check if the post request has the file part
+    if &#34;file&#34; not in request.files:
+        return &#34;No file type&#34;, 404
+    file = request.files[&#34;file&#34;]
+    # check size of file
+    size = len(file.read())  # in bytes
+    if size &gt; 2000:  # greater than 2kb
+        return &#34;File too large&#34;, 413
+    # If the user does not select a file, the browser submits an
+    # empty file without a filename.
+    if file.filename == &#34;&#34;:
+        return &#34;No selected file&#34;, 404
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file.stream.seek(0)
+        file.save(path.join(app.config[&#34;UPLOAD_FOLDER&#34;], filename))
+        return redirect(url_for(&#34;downloadfile&#34;, filename=filename))
+    return f&#34;Bad File Extension... Only {ALLOWED_EXTENSIONS} are allowed!&#34;, 406</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
 </dl>
 </section>
 </article>
@@ -1626,6 +2746,7 @@ def post(self):
 <ul id="index">
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="app.allowed_file" href="#app.allowed_file">allowed_file</a></code></li>
 <li><code><a title="app.logging_after" href="#app.logging_after">logging_after</a></code></li>
 <li><code><a title="app.logging_before" href="#app.logging_before">logging_before</a></code></li>
 </ul>
@@ -1644,10 +2765,26 @@ def post(self):
 <li>
 <h4><code><a title="app.ChangeTeamName" href="#app.ChangeTeamName">ChangeTeamName</a></code></h4>
 <ul class="">
-<li><code><a title="app.ChangeTeamName.endpoint" href="#app.ChangeTeamName.endpoint">endpoint</a></code></li>
-<li><code><a title="app.ChangeTeamName.mediatypes" href="#app.ChangeTeamName.mediatypes">mediatypes</a></code></li>
 <li><code><a title="app.ChangeTeamName.methods" href="#app.ChangeTeamName.methods">methods</a></code></li>
 <li><code><a title="app.ChangeTeamName.post" href="#app.ChangeTeamName.post">post</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.CheckFlag" href="#app.CheckFlag">CheckFlag</a></code></h4>
+<ul class="">
+<li><code><a title="app.CheckFlag.endpoint" href="#app.CheckFlag.endpoint">endpoint</a></code></li>
+<li><code><a title="app.CheckFlag.get" href="#app.CheckFlag.get">get</a></code></li>
+<li><code><a title="app.CheckFlag.mediatypes" href="#app.CheckFlag.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.CheckFlag.methods" href="#app.CheckFlag.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.CheckSolvedFlags" href="#app.CheckSolvedFlags">CheckSolvedFlags</a></code></h4>
+<ul class="">
+<li><code><a title="app.CheckSolvedFlags.endpoint" href="#app.CheckSolvedFlags.endpoint">endpoint</a></code></li>
+<li><code><a title="app.CheckSolvedFlags.get" href="#app.CheckSolvedFlags.get">get</a></code></li>
+<li><code><a title="app.CheckSolvedFlags.mediatypes" href="#app.CheckSolvedFlags.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.CheckSolvedFlags.methods" href="#app.CheckSolvedFlags.methods">methods</a></code></li>
 </ul>
 </li>
 <li>
@@ -1678,12 +2815,48 @@ def post(self):
 </ul>
 </li>
 <li>
+<h4><code><a title="app.DownloadFile" href="#app.DownloadFile">DownloadFile</a></code></h4>
+<ul class="">
+<li><code><a title="app.DownloadFile.endpoint" href="#app.DownloadFile.endpoint">endpoint</a></code></li>
+<li><code><a title="app.DownloadFile.get" href="#app.DownloadFile.get">get</a></code></li>
+<li><code><a title="app.DownloadFile.mediatypes" href="#app.DownloadFile.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.DownloadFile.methods" href="#app.DownloadFile.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="app.GetGraphData" href="#app.GetGraphData">GetGraphData</a></code></h4>
 <ul class="">
 <li><code><a title="app.GetGraphData.endpoint" href="#app.GetGraphData.endpoint">endpoint</a></code></li>
 <li><code><a title="app.GetGraphData.get" href="#app.GetGraphData.get">get</a></code></li>
 <li><code><a title="app.GetGraphData.mediatypes" href="#app.GetGraphData.mediatypes">mediatypes</a></code></li>
 <li><code><a title="app.GetGraphData.methods" href="#app.GetGraphData.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.GetInputIndex" href="#app.GetInputIndex">GetInputIndex</a></code></h4>
+<ul class="">
+<li><code><a title="app.GetInputIndex.endpoint" href="#app.GetInputIndex.endpoint">endpoint</a></code></li>
+<li><code><a title="app.GetInputIndex.get" href="#app.GetInputIndex.get">get</a></code></li>
+<li><code><a title="app.GetInputIndex.mediatypes" href="#app.GetInputIndex.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.GetInputIndex.methods" href="#app.GetInputIndex.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.GetJudgement" href="#app.GetJudgement">GetJudgement</a></code></h4>
+<ul class="">
+<li><code><a title="app.GetJudgement.endpoint" href="#app.GetJudgement.endpoint">endpoint</a></code></li>
+<li><code><a title="app.GetJudgement.get" href="#app.GetJudgement.get">get</a></code></li>
+<li><code><a title="app.GetJudgement.mediatypes" href="#app.GetJudgement.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.GetJudgement.methods" href="#app.GetJudgement.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.GetPastSubmissions" href="#app.GetPastSubmissions">GetPastSubmissions</a></code></h4>
+<ul class="">
+<li><code><a title="app.GetPastSubmissions.endpoint" href="#app.GetPastSubmissions.endpoint">endpoint</a></code></li>
+<li><code><a title="app.GetPastSubmissions.get" href="#app.GetPastSubmissions.get">get</a></code></li>
+<li><code><a title="app.GetPastSubmissions.mediatypes" href="#app.GetPastSubmissions.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.GetPastSubmissions.methods" href="#app.GetPastSubmissions.methods">methods</a></code></li>
 </ul>
 </li>
 <li>
@@ -1723,12 +2896,48 @@ def post(self):
 </ul>
 </li>
 <li>
+<h4><code><a title="app.GetToken" href="#app.GetToken">GetToken</a></code></h4>
+<ul class="">
+<li><code><a title="app.GetToken.endpoint" href="#app.GetToken.endpoint">endpoint</a></code></li>
+<li><code><a title="app.GetToken.get" href="#app.GetToken.get">get</a></code></li>
+<li><code><a title="app.GetToken.mediatypes" href="#app.GetToken.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.GetToken.methods" href="#app.GetToken.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
 <h4><code><a title="app.Home" href="#app.Home">Home</a></code></h4>
 <ul class="">
 <li><code><a title="app.Home.endpoint" href="#app.Home.endpoint">endpoint</a></code></li>
 <li><code><a title="app.Home.get" href="#app.Home.get">get</a></code></li>
 <li><code><a title="app.Home.mediatypes" href="#app.Home.mediatypes">mediatypes</a></code></li>
 <li><code><a title="app.Home.methods" href="#app.Home.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.JoinTeam" href="#app.JoinTeam">JoinTeam</a></code></h4>
+<ul class="">
+<li><code><a title="app.JoinTeam.endpoint" href="#app.JoinTeam.endpoint">endpoint</a></code></li>
+<li><code><a title="app.JoinTeam.get" href="#app.JoinTeam.get">get</a></code></li>
+<li><code><a title="app.JoinTeam.mediatypes" href="#app.JoinTeam.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.JoinTeam.methods" href="#app.JoinTeam.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.LeaveTeam" href="#app.LeaveTeam">LeaveTeam</a></code></h4>
+<ul class="">
+<li><code><a title="app.LeaveTeam.endpoint" href="#app.LeaveTeam.endpoint">endpoint</a></code></li>
+<li><code><a title="app.LeaveTeam.get" href="#app.LeaveTeam.get">get</a></code></li>
+<li><code><a title="app.LeaveTeam.mediatypes" href="#app.LeaveTeam.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.LeaveTeam.methods" href="#app.LeaveTeam.methods">methods</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.ListFiles" href="#app.ListFiles">ListFiles</a></code></h4>
+<ul class="">
+<li><code><a title="app.ListFiles.endpoint" href="#app.ListFiles.endpoint">endpoint</a></code></li>
+<li><code><a title="app.ListFiles.get" href="#app.ListFiles.get">get</a></code></li>
+<li><code><a title="app.ListFiles.mediatypes" href="#app.ListFiles.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.ListFiles.methods" href="#app.ListFiles.methods">methods</a></code></li>
 </ul>
 </li>
 <li>
@@ -1747,6 +2956,16 @@ def post(self):
 <li><code><a title="app.SetScore.mediatypes" href="#app.SetScore.mediatypes">mediatypes</a></code></li>
 <li><code><a title="app.SetScore.methods" href="#app.SetScore.methods">methods</a></code></li>
 <li><code><a title="app.SetScore.post" href="#app.SetScore.post">post</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="app.UploadFile" href="#app.UploadFile">UploadFile</a></code></h4>
+<ul class="">
+<li><code><a title="app.UploadFile.endpoint" href="#app.UploadFile.endpoint">endpoint</a></code></li>
+<li><code><a title="app.UploadFile.get" href="#app.UploadFile.get">get</a></code></li>
+<li><code><a title="app.UploadFile.mediatypes" href="#app.UploadFile.mediatypes">mediatypes</a></code></li>
+<li><code><a title="app.UploadFile.methods" href="#app.UploadFile.methods">methods</a></code></li>
+<li><code><a title="app.UploadFile.post" href="#app.UploadFile.post">post</a></code></li>
 </ul>
 </li>
 </ul>

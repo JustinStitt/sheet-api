@@ -1,12 +1,24 @@
 from datetime import timedelta
-from os import getenv, path, listdir
+from os import getenv, path, listdir, stat
 import time
 from typing import Literal
 
 from flask_cors import CORS
 
 from dotenv import load_dotenv
-from flask import Flask, current_app, send_from_directory, jsonify, session, make_response, flash, url_for,  redirect, request, g as app_ctx
+from flask import (
+    Flask,
+    current_app,
+    send_from_directory,
+    jsonify,
+    session,
+    make_response,
+    flash,
+    url_for,
+    redirect,
+    request,
+    g as app_ctx,
+)
 from flask_jwt_extended import (
     JWTManager,
     create_access_token,
@@ -37,8 +49,10 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=10**4)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 jwt = JWTManager(app)
 
+
 def allowed_file(filename: str) -> bool:
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @app.before_request
 def logging_before():
@@ -69,10 +83,12 @@ class Home(Resource):
     def get(self):
         return "Welcome to the ACM March Madness Sheet API!", 200
 
+
 class UploadFile(Resource):
     def get(self):
-        headers = {"Content-Type": 'text/html'}
-        return make_response('''
+        headers = {"Content-Type": "text/html"}
+        return make_response(
+            """
         <!doctype html>
         <title>Upload new File</title>
         <h1>Upload new File</h1>
@@ -81,43 +97,53 @@ class UploadFile(Resource):
           <input type=submit value=Upload>
         </form>
         <a href="/files">View Files</a>
-        ''', 200, headers)
-
+        """,
+            200,
+            headers,
+        )
 
     def post(self):
         # check if the post request has the file part
-        if 'file' not in request.files:
+        if "file" not in request.files:
             return "No file type", 404
-        file = request.files['file']
+        file = request.files["file"]
+        # check size of file
+        size = len(file.read())  # in bytes
+        if size > 2000:  # greater than 2kb
+            return "File too large", 413
         # If the user does not select a file, the browser submits an
         # empty file without a filename.
-        if file.filename == '':
-            return  'No selected file', 404
+        if file.filename == "":
+            return "No selected file", 404
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
-            file.save(path.join(app.config['UPLOAD_FOLDER'], filename))
-            return redirect(url_for('downloadfile', filename=filename))
+            file.stream.seek(0)
+            file.save(path.join(app.config["UPLOAD_FOLDER"], filename))
+            return redirect(url_for("downloadfile", filename=filename))
         return f"Bad File Extension... Only {ALLOWED_EXTENSIONS} are allowed!", 406
+
 
 class DownloadFile(Resource):
     def get(self, filename: str):
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+        return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
 
 class ListFiles(Resource):
     def get(self):
-        files = listdir(UPLOAD_FOLDER)
-        html = f'''
+        filenames = listdir(UPLOAD_FOLDER)
+        sizes = [stat(UPLOAD_FOLDER + "/" + filename).st_size for filename in filenames]
+        files = zip(filenames, sizes)
+        html = f"""
         <!doctype HTML>
         <title>Files</title>
         <h1>Files</h1>
         <ul>
-        {''.join(['<li><a href="/download_file/' + file + '">' + file + "</a></li>" for file in files])}
+        {''.join(['<li><a href="/download_file/' + file + '">' + file + "</a> - <mark>" + str(size) + "b</mark></li>" for file, size in files])}
         </ul>
         <a href="/upload_file">Upload File</a>
-        '''
+        """
         headers = {"Content-Type": "text/html"}
         return make_response(html, 200, headers)
-
 
 
 class Login(Resource):
@@ -367,7 +393,7 @@ class GetTeamFromToken(Resource):
         token = args["token"]
         resp = sheet.getTeamFromToken(token)
         if resp is None:  # didn't find team
-            return "Couldn't find team from token", 404
+            return "Couldn't find team from token", 404 # not found!
         hresp = make_response({"team": resp}, 200)
         hresp.set_cookie("team", resp)
         return hresp
