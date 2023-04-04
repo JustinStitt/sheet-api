@@ -23,6 +23,8 @@
 6) Install Dependencies
     $ pip install -r requirements.txt
 
+7) Modify `example.env` then rename it to `.env` to support **secret** environment variables
+
 7) Go to /src directory
     $ cd src
 
